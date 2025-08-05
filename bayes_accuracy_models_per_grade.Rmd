@@ -1,0 +1,2792 @@
+---
+title: "accuracy_models_per_grade"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r include=FALSE}
+library(tidyr)
+library(lme4)
+library(dplyr)
+library(brms)
+library(ggplot2)
+library(bridgesampling)
+library(patchwork)
+
+```
+
+# Mole Game
+
+```{r}
+#Load the data from the benchmark paper 
+# I need to change the data and include grades 1 and 2 but at the moment let's use this data to explore 
+
+train_logs_40_mdr <- readRDS(file = "/home/user-047/code_seyma/WMBenchmark/data/train_logs_40_mdr.rds")
+items_40_temp<-readRDS(file = "/home/user-047/code_seyma/WMBenchmark/data/items_40_temp.rds")
+
+```
+
+```{r}
+# now half of the students because there might be pre-registration
+set.seed(871)
+# Select unique students with grade info
+students <- train_logs_40_mdr %>%
+  select(user_id, grade) %>%
+  distinct()
+# Sample 50% of students within each grade
+sampled_students <- students %>%
+  group_by(grade) %>%
+  sample_frac(0.5) %>%
+  ungroup()
+
+train_logs_40_mdr_half <- train_logs_40_mdr %>%
+  filter(user_id %in% sampled_students$user_id)
+```
+```{r}
+#Grade levels
+
+grades <- unique(train_logs_40_mdr_half$grade)
+
+for (g in grades) {
+  assign(paste0("train_logs_40_mdr_half_grade", g),
+         train_logs_40_mdr_half %>% filter(grade == g))
+}
+```
+
+
+## Grade 3 
+```{r include=FALSE}
+# Long format
+
+train_logs_40_mdr_half_grade3_long <- train_logs_40_mdr_half_grade3 %>%
+
+  pivot_longer(cols = starts_with("position_"), names_to = "position", values_to = "accuracy") %>%
+  filter(!is.na(accuracy)) %>%
+  mutate(position_continuous = as.numeric(case_when(
+    position == "position_1" ~ "1",
+    position == "position_2" ~ "2",
+    position == "position_3" ~ "3",
+    position == "position_4" ~ "4",
+    position == "position_5" ~ "5",
+    position == "position_6" ~ "6",
+    TRUE ~ NA_character_
+  ))) %>%
+  inner_join(items_40_temp, by = c("set_size", "item_id", "position_continuous")) %>%
+  mutate(last_item = set_size == position_continuous) %>%
+  mutate(last_second_item = (set_size-1) == position_continuous) %>%
+  mutate(position_rate = round(position_continuous / set_size,2))
+```
+
+```{r}
+# priors <- c(
+#  set_prior("normal(0, 1)", class = "Intercept"),
+#  set_prior("normal(0, 1)", class = "b", coef = "difficulty"),
+#  set_prior("normal(0, 1.5)", class = "b", coef = "position_rate"),
+#  set_prior("normal(0, 1)", class = "b", coef = "set_size"),
+#  set_prior("normal(0, 1)", class = "b", coef = "duplicateTRUE"),
+#  set_prior("normal(0, 1)", class = "b", coef = "structuredTRUE"),
+#  set_prior("normal(0, 1)", class = "b", coef = "last_itemTRUE"),
+#  set_prior("normal(0, 1)", class = "b", coef = "last_second_itemTRUE"),
+#  set_prior("normal(0, 2)", class = "sd")
+# )
+
+# mod_bys_accuracy_mole_grade3 <- brm(
+#   accuracy ~ (1 | user_id) + (1 | item_id) + difficulty + position_rate+ set_size + duplicate + structured + last_item + last_second_item,
+#   data = train_logs_40_mdr_half_grade3_long,
+#   family = bernoulli(),
+#   prior = priors,
+#   warmup = 500,
+#   iter = 2000,
+#   cores = 4
+# )
+# saveRDS(mod_bys_accuracy_mole_grade3, file = "~/code_seyma/WMDevelopmentProject/mod_bys_accuracy_mole_grade3.rds")
+```
+```{r}
+mod_bys_accuracy_mole_grade3 <- readRDS(file = "~/code_seyma/WMDevelopmentProject/models/mod_bys_accuracy_mole_grade3.rds")
+```
+```{r}
+mod_bys_accuracy_mole_grade3
+```
+
+
+## Grade 4
+
+```{r include=FALSE}
+# Long format
+
+train_logs_40_mdr_half_grade4_long <- train_logs_40_mdr_half_grade4 %>%
+
+  pivot_longer(cols = starts_with("position_"), names_to = "position", values_to = "accuracy") %>%
+  filter(!is.na(accuracy)) %>%
+  mutate(position_continuous = as.numeric(case_when(
+    position == "position_1" ~ "1",
+    position == "position_2" ~ "2",
+    position == "position_3" ~ "3",
+    position == "position_4" ~ "4",
+    position == "position_5" ~ "5",
+    position == "position_6" ~ "6",
+    TRUE ~ NA_character_
+  ))) %>%
+  inner_join(items_40_temp, by = c("set_size", "item_id", "position_continuous")) %>%
+  mutate(last_item = set_size == position_continuous) %>%
+  mutate(last_second_item = (set_size-1) == position_continuous) %>%
+  mutate(position_rate = round(position_continuous / set_size,2))
+
+# priors <- c(
+#  set_prior("normal(0, 1)", class = "Intercept"),
+#  set_prior("normal(0, 1)", class = "b", coef = "difficulty"),
+#  set_prior("normal(0, 1.5)", class = "b", coef = "position_rate"),
+#  set_prior("normal(0, 1)", class = "b", coef = "set_size"),
+#  set_prior("normal(0, 1)", class = "b", coef = "duplicateTRUE"),
+#  set_prior("normal(0, 1)", class = "b", coef = "structuredTRUE"),
+#  set_prior("normal(0, 1)", class = "b", coef = "last_itemTRUE"),
+#  set_prior("normal(0, 1)", class = "b", coef = "last_second_itemTRUE"),
+#  set_prior("normal(0, 2)", class = "sd")
+# )
+```
+
+```{r}
+# mod_bys_accuracy_mole_grade4 <- brm(
+#   accuracy ~ (1 | user_id) + (1 | item_id) + difficulty + position_rate+ set_size + duplicate + structured + last_item + last_second_item,
+#   data = train_logs_40_mdr_half_grade4_long,
+#   family = bernoulli(),
+#   prior = priors,
+#   warmup = 500,
+#   iter = 2000,
+#   cores = 4
+# )
+# saveRDS(mod_bys_accuracy_mole_grade4, file = "~/code_seyma/WMDevelopmentProject/mod_bys_accuracy_mole_grade4.rds")
+```
+```{r}
+mod_bys_accuracy_mole_grade4 <- readRDS(file = "~/code_seyma/WMDevelopmentProject/models/mod_bys_accuracy_mole_grade4.rds")
+```
+```{r}
+mod_bys_accuracy_mole_grade4
+```
+
+## Grade 5
+
+```{r eval=FALSE, include=FALSE}
+# Long format
+
+train_logs_40_mdr_half_grade5_long <- train_logs_40_mdr_half_grade5 %>%
+
+  pivot_longer(cols = starts_with("position_"), names_to = "position", values_to = "accuracy") %>%
+  filter(!is.na(accuracy)) %>%
+  mutate(position_continuous = as.numeric(case_when(
+    position == "position_1" ~ "1",
+    position == "position_2" ~ "2",
+    position == "position_3" ~ "3",
+    position == "position_4" ~ "4",
+    position == "position_5" ~ "5",
+    position == "position_6" ~ "6",
+    TRUE ~ NA_character_
+  ))) %>%
+  inner_join(items_40_temp, by = c("set_size", "item_id", "position_continuous")) %>%
+  mutate(last_item = set_size == position_continuous) %>%
+  mutate(last_second_item = (set_size-1) == position_continuous) %>%
+  mutate(position_rate = round(position_continuous / set_size,2))
+
+# priors <- c(
+#  set_prior("normal(0, 1)", class = "Intercept"),
+#  set_prior("normal(0, 1)", class = "b", coef = "difficulty"),
+#  set_prior("normal(0, 1.5)", class = "b", coef = "position_rate"),
+#  set_prior("normal(0, 1)", class = "b", coef = "set_size"),
+#  set_prior("normal(0, 1)", class = "b", coef = "duplicateTRUE"),
+#  set_prior("normal(0, 1)", class = "b", coef = "structuredTRUE"),
+#  set_prior("normal(0, 1)", class = "b", coef = "last_itemTRUE"),
+#  set_prior("normal(0, 1)", class = "b", coef = "last_second_itemTRUE"),
+#  set_prior("normal(0, 2)", class = "sd")
+# )
+```
+
+```{r}
+# mod_bys_accuracy_mole_grade5 <- brm(
+#   accuracy ~ (1 | user_id) + (1 | item_id) + difficulty + position_rate+ set_size + duplicate + structured + last_item + last_second_item,
+#   data = train_logs_40_mdr_half_grade5_long,
+#   family = bernoulli(),
+#   prior = priors,
+#   warmup = 500,
+#   iter = 2000,
+#   cores = 4
+# )
+# saveRDS(mod_bys_accuracy_mole_grade5, file = "~/code_seyma/WMDevelopmentProject/models/mod_bys_accuracy_mole_grade5.rds")
+
+```
+
+```{r}
+mod_bys_accuracy_mole_grade5 <- readRDS(file = "~/code_seyma/WMDevelopmentProject/models/mod_bys_accuracy_mole_grade5.rds")
+```
+```{r}
+mod_bys_accuracy_mole_grade5
+```
+
+```{r}
+# mod_accuracy_mole_grade5_interaction <- glmer(
+#   accuracy ~ (1 | user_id) + (1 | item_id) + difficulty + position_rate * set_size + duplicate + structured + last_item + last_second_item,
+#   data = train_logs_40_mdr_half_grade5_long,
+#   family = binomial,
+#   control = glmerControl(optimizer = "bobyqa", optCtrl = list(maxfun = 100000))
+# )
+# mod_accuracy_mole_grade5_interaction <- read("~/code_seyma/WMDevelopmentProject/mod_accuracy_mole_grade5_interaction.rds")
+```
+
+## Grade 6
+
+```{r include=FALSE}
+# Long format
+
+train_logs_40_mdr_half_grade6_long <- train_logs_40_mdr_half_grade6 %>%
+
+  pivot_longer(cols = starts_with("position_"), names_to = "position", values_to = "accuracy") %>%
+  filter(!is.na(accuracy)) %>%
+  mutate(position_continuous = as.numeric(case_when(
+    position == "position_1" ~ "1",
+    position == "position_2" ~ "2",
+    position == "position_3" ~ "3",
+    position == "position_4" ~ "4",
+    position == "position_5" ~ "5",
+    position == "position_6" ~ "6",
+    TRUE ~ NA_character_
+  ))) %>%
+  inner_join(items_40_temp, by = c("set_size", "item_id", "position_continuous")) %>%
+  mutate(last_item = set_size == position_continuous) %>%
+  mutate(last_second_item = (set_size-1) == position_continuous) %>%
+  mutate(position_rate = round(position_continuous / set_size,2))
+
+# priors <- c(
+#  set_prior("normal(0, 1)", class = "Intercept"),
+#  set_prior("normal(0, 1)", class = "b", coef = "difficulty"),
+#  set_prior("normal(0, 1.5)", class = "b", coef = "position_rate"),
+#  set_prior("normal(0, 1)", class = "b", coef = "set_size"),
+#  set_prior("normal(0, 1)", class = "b", coef = "duplicateTRUE"),
+#  set_prior("normal(0, 1)", class = "b", coef = "structuredTRUE"),
+#  set_prior("normal(0, 1)", class = "b", coef = "last_itemTRUE"),
+#  set_prior("normal(0, 1)", class = "b", coef = "last_second_itemTRUE"),
+#  set_prior("normal(0, 2)", class = "sd")
+# )
+```
+
+```{r}
+
+# mod_bys_accuracy_mole_grade6 <- brm(
+#   accuracy ~ (1 | user_id) + (1 | item_id) + difficulty + position_rate+ set_size + duplicate + structured + last_item + last_second_item,
+#   data = train_logs_40_mdr_half_grade6_long,
+#   family = bernoulli(),
+#   prior = priors,
+#   warmup = 500,
+#   iter = 2000,
+#   cores = 4
+# )
+# saveRDS(mod_bys_accuracy_mole_grade6, file = "~/code_seyma/WMDevelopmentProject/models/mod_bys_accuracy_mole_grade6.rds")
+
+```
+
+```{r}
+mod_bys_accuracy_mole_grade6 <- readRDS( file = "~/code_seyma/WMDevelopmentProject/models/mod_bys_accuracy_mole_grade6.rds")
+```
+```{r}
+mod_bys_accuracy_mole_grade6
+```
+
+## Grade 7
+
+```{r include=FALSE}
+# Long format
+
+train_logs_40_mdr_half_grade7_long <- train_logs_40_mdr_half_grade7 %>%
+
+  pivot_longer(cols = starts_with("position_"), names_to = "position", values_to = "accuracy") %>%
+  filter(!is.na(accuracy)) %>%
+  mutate(position_continuous = as.numeric(case_when(
+    position == "position_1" ~ "1",
+    position == "position_2" ~ "2",
+    position == "position_3" ~ "3",
+    position == "position_4" ~ "4",
+    position == "position_5" ~ "5",
+    position == "position_6" ~ "6",
+    TRUE ~ NA_character_
+  ))) %>%
+  inner_join(items_40_temp, by = c("set_size", "item_id", "position_continuous")) %>%
+  mutate(last_item = set_size == position_continuous) %>%
+  mutate(last_second_item = (set_size-1) == position_continuous) %>%
+  mutate(position_rate = round(position_continuous / set_size,2))
+```
+
+```{r}
+# priors <- c(
+#  set_prior("normal(0, 1)", class = "Intercept"),
+#  set_prior("normal(0, 1)", class = "b", coef = "difficulty"),
+#  set_prior("normal(0, 1.5)", class = "b", coef = "position_rate"),
+#  set_prior("normal(0, 1)", class = "b", coef = "set_size"),
+#  set_prior("normal(0, 1)", class = "b", coef = "duplicateTRUE"),
+#  set_prior("normal(0, 1)", class = "b", coef = "structuredTRUE"),
+#  set_prior("normal(0, 1)", class = "b", coef = "last_itemTRUE"),
+#  set_prior("normal(0, 1)", class = "b", coef = "last_second_itemTRUE"),
+#  set_prior("normal(0, 2)", class = "sd")
+# )
+
+# mod_bys_accuracy_mole_grade7 <- brm(
+#   accuracy ~ (1 | user_id) + (1 | item_id) + difficulty + position_rate+ set_size + duplicate + structured + last_item + last_second_item,
+#   data = train_logs_40_mdr_half_grade7_long,
+#   family = bernoulli(),
+#   prior = priors,
+#   warmup = 500,
+#   iter = 2000,
+#   cores = 4
+# )
+# saveRDS(mod_bys_accuracy_mole_grade7, file = "~/code_seyma/WMDevelopmentProject/models/mod_bys_accuracy_mole_grade7.rds")
+```
+
+```{r}
+mod_bys_accuracy_mole_grade7 <- readRDS(file = "~/code_seyma/WMDevelopmentProject/models/mod_bys_accuracy_mole_grade7.rds")
+```
+```{r}
+mod_bys_accuracy_mole_grade7
+```
+
+## Plots-Benchmarks by grade
+### Primacy 
+
+```{r include=FALSE}
+grade_coefficients_mole <- data.frame(
+  grade = c(3, 4, 5, 6, 7),
+  estimate = c(
+    fixef(mod_bys_accuracy_mole_grade3)["position_rate", "Estimate"],
+    fixef(mod_bys_accuracy_mole_grade4)["position_rate", "Estimate"],
+    fixef(mod_bys_accuracy_mole_grade5)["position_rate", "Estimate"],
+    fixef(mod_bys_accuracy_mole_grade6)["position_rate", "Estimate"],
+    fixef(mod_bys_accuracy_mole_grade7)["position_rate", "Estimate"]
+  ),
+  Q2.5 = c(
+    fixef(mod_bys_accuracy_mole_grade3)["position_rate", "Q2.5"],
+    fixef(mod_bys_accuracy_mole_grade4)["position_rate", "Q2.5"],
+    fixef(mod_bys_accuracy_mole_grade5)["position_rate", "Q2.5"],
+    fixef(mod_bys_accuracy_mole_grade6)["position_rate", "Q2.5"],
+    fixef(mod_bys_accuracy_mole_grade7)["position_rate", "Q2.5"]
+  ),
+    Q97.5 = c(
+    fixef(mod_bys_accuracy_mole_grade3)["position_rate", "Q97.5"],
+    fixef(mod_bys_accuracy_mole_grade4)["position_rate", "Q97.5"],
+    fixef(mod_bys_accuracy_mole_grade5)["position_rate", "Q97.5"],
+    fixef(mod_bys_accuracy_mole_grade6)["position_rate", "Q97.5"],
+    fixef(mod_bys_accuracy_mole_grade7)["position_rate", "Q97.5"]
+  )
+)
+```
+
+
+```{r echo=FALSE}
+grade_coefficients_mole_plot <- grade_coefficients_mole %>%
+  ggplot(aes(x = factor(grade), y = estimate)) +
+  geom_point() +
+  geom_errorbar(aes(ymin = Q2.5, ymax = Q97.5), width = 0.2) +
+  labs(
+    title = "Effect of position_rate across Grades\n(Mole Game)",
+    x = "Grade",
+    y = "Posterior Mean with 95% CrI"
+  ) +
+  theme_minimal()
+grade_coefficients_mole_plot
+```
+
+### Recency
+
+```{r include=FALSE}
+grade_coefficients_mole_recency <- data.frame(
+  grade = c(3, 4, 5, 6, 7),
+  estimate = c(
+    fixef(mod_bys_accuracy_mole_grade3)["last_itemTRUE", "Estimate"],
+    fixef(mod_bys_accuracy_mole_grade4)["last_itemTRUE", "Estimate"],
+    fixef(mod_bys_accuracy_mole_grade5)["last_itemTRUE", "Estimate"],
+    fixef(mod_bys_accuracy_mole_grade6)["last_itemTRUE", "Estimate"],
+    fixef(mod_bys_accuracy_mole_grade7)["last_itemTRUE", "Estimate"]
+  ),
+  Q2.5 = c(
+    fixef(mod_bys_accuracy_mole_grade3)["last_itemTRUE", "Q2.5"],
+    fixef(mod_bys_accuracy_mole_grade4)["last_itemTRUE", "Q2.5"],
+    fixef(mod_bys_accuracy_mole_grade5)["last_itemTRUE", "Q2.5"],
+    fixef(mod_bys_accuracy_mole_grade6)["last_itemTRUE", "Q2.5"],
+    fixef(mod_bys_accuracy_mole_grade7)["last_itemTRUE", "Q2.5"]
+  ),
+    Q97.5 = c(
+    fixef(mod_bys_accuracy_mole_grade3)["last_itemTRUE", "Q97.5"],
+    fixef(mod_bys_accuracy_mole_grade4)["last_itemTRUE", "Q97.5"],
+    fixef(mod_bys_accuracy_mole_grade5)["last_itemTRUE", "Q97.5"],
+    fixef(mod_bys_accuracy_mole_grade6)["last_itemTRUE", "Q97.5"],
+    fixef(mod_bys_accuracy_mole_grade7)["last_itemTRUE", "Q97.5"]
+  )
+)
+```
+
+
+```{r echo=FALSE}
+grade_coefficients_mole_recency_plot <- grade_coefficients_mole_recency %>%
+  ggplot(aes(x = factor(grade), y = estimate)) +
+  geom_point() +
+  geom_errorbar(aes(ymin = Q2.5, ymax = Q97.5), width = 0.2) +
+  labs(
+    title = "Effect of last item across Grades\n(Mole Game)",
+    x = "Grade",
+    y = "Posterior Mean with 95% Credible Interval)"
+  ) +
+  theme_minimal()
+grade_coefficients_mole_recency_plot
+```
+
+```{r}
+grade_coefficients_mole$type <- "Position Rate"
+grade_coefficients_mole_recency$type <- "Last Item"
+
+grade_coefficients_combined <- bind_rows(
+  grade_coefficients_mole,
+  grade_coefficients_mole_recency
+)
+
+ggplot(grade_coefficients_combined,
+       aes(x = factor(grade), y = estimate, color = type)) +
+  geom_point(position = position_dodge(width = 0.3), size = 2) +
+  geom_errorbar(aes(ymin = Q2.5, ymax = Q97.5),
+                position = position_dodge(width = 0.3), width = 0.2) +
+  labs(
+    title = "Effect of Position Rate and Last Item Across Grades\n(Mole Game)",
+    x = "Grade",
+    y = "Posterior Mean with 95% Credible Interval",
+    color = "Effect"
+  ) +
+  theme_minimal() +
+  theme(
+    legend.position = "top"
+  )
+```
+
+### Set size
+
+```{r include=FALSE}
+grade_coefficients_mole_setsize <- data.frame(
+  grade = c(3, 4, 5, 6, 7),
+  estimate = c(
+    fixef(mod_bys_accuracy_mole_grade3)["set_size", "Estimate"],
+    fixef(mod_bys_accuracy_mole_grade4)["set_size", "Estimate"],
+    fixef(mod_bys_accuracy_mole_grade5)["set_size", "Estimate"],
+    fixef(mod_bys_accuracy_mole_grade6)["set_size", "Estimate"],
+    fixef(mod_bys_accuracy_mole_grade7)["set_size", "Estimate"]
+  ),
+  Q2.5 = c(
+    fixef(mod_bys_accuracy_mole_grade3)["set_size", "Q2.5"],
+    fixef(mod_bys_accuracy_mole_grade4)["set_size", "Q2.5"],
+    fixef(mod_bys_accuracy_mole_grade5)["set_size", "Q2.5"],
+    fixef(mod_bys_accuracy_mole_grade6)["set_size", "Q2.5"],
+    fixef(mod_bys_accuracy_mole_grade7)["set_size", "Q2.5"]
+  ),
+    Q97.5 = c(
+    fixef(mod_bys_accuracy_mole_grade3)["set_size", "Q97.5"],
+    fixef(mod_bys_accuracy_mole_grade4)["set_size", "Q97.5"],
+    fixef(mod_bys_accuracy_mole_grade5)["set_size", "Q97.5"],
+    fixef(mod_bys_accuracy_mole_grade6)["set_size", "Q97.5"],
+    fixef(mod_bys_accuracy_mole_grade7)["set_size", "Q97.5"]
+  )
+)
+
+
+grade_coefficients_mole_setsize_plot <- grade_coefficients_mole_setsize %>%
+  ggplot(aes(x = factor(grade), y = estimate)) +
+  geom_point() +
+  geom_errorbar(aes(ymin = Q2.5, ymax = Q97.5), width = 0.2) +
+  labs(
+    title = "Effect of set size across Grades\n(Mole Game)",
+    x = "Grade",
+    y = "Posterior Mean with 95% CrI"
+  ) +
+  theme_minimal()
+
+```
+
+
+### Structured 
+
+```{r include=FALSE}
+grade_coefficients_mole_structured <- data.frame(
+  grade = c(3,4, 5, 6, 7),
+  estimate = c(
+    fixef(mod_bys_accuracy_mole_grade3)["structuredTRUE", "Estimate"],
+    fixef(mod_bys_accuracy_mole_grade4)["structuredTRUE", "Estimate"],
+    fixef(mod_bys_accuracy_mole_grade5)["structuredTRUE", "Estimate"],
+    fixef(mod_bys_accuracy_mole_grade6)["structuredTRUE", "Estimate"],
+    fixef(mod_bys_accuracy_mole_grade7)["structuredTRUE", "Estimate"]
+  ),
+  Q2.5 = c(
+    fixef(mod_bys_accuracy_mole_grade3)["structuredTRUE", "Q2.5"],
+    fixef(mod_bys_accuracy_mole_grade4)["structuredTRUE", "Q2.5"],
+    fixef(mod_bys_accuracy_mole_grade5)["structuredTRUE", "Q2.5"],
+    fixef(mod_bys_accuracy_mole_grade6)["structuredTRUE", "Q2.5"],
+    fixef(mod_bys_accuracy_mole_grade7)["structuredTRUE", "Q2.5"]
+  ),
+    Q97.5 = c(
+    fixef(mod_bys_accuracy_mole_grade3)["structuredTRUE", "Q97.5"],
+    fixef(mod_bys_accuracy_mole_grade4)["structuredTRUE", "Q97.5"],
+    fixef(mod_bys_accuracy_mole_grade5)["structuredTRUE", "Q97.5"],
+    fixef(mod_bys_accuracy_mole_grade6)["structuredTRUE", "Q97.5"],
+    fixef(mod_bys_accuracy_mole_grade7)["structuredTRUE", "Q97.5"]
+  )
+)
+
+grade_coefficients_mole_structured_plot <-grade_coefficients_mole_structured %>%
+  ggplot(aes(x = factor(grade), y = estimate)) +
+  geom_point() +
+  geom_errorbar(aes(ymin = Q2.5, ymax = Q97.5), width = 0.2) +
+  labs(
+    title = "Effect of structure  across Grades\n(Mole Game)",
+    x = "Grade",
+    y = "Posterior Mean with 95% CrI"
+  ) +
+  theme_minimal()
+
+```
+### Duplicate
+
+```{r include=FALSE}
+grade_coefficients_mole_duplicate <- data.frame(
+  grade = c(3, 4, 5, 6, 7),
+  estimate = c(
+    fixef(mod_bys_accuracy_mole_grade3)["duplicateTRUE", "Estimate"],
+    fixef(mod_bys_accuracy_mole_grade4)["duplicateTRUE", "Estimate"],
+    fixef(mod_bys_accuracy_mole_grade5)["duplicateTRUE", "Estimate"],
+    fixef(mod_bys_accuracy_mole_grade6)["duplicateTRUE", "Estimate"],
+    fixef(mod_bys_accuracy_mole_grade7)["duplicateTRUE", "Estimate"]
+  ),
+  Q2.5 = c(
+    fixef(mod_bys_accuracy_mole_grade3)["duplicateTRUE", "Q2.5"],
+    fixef(mod_bys_accuracy_mole_grade4)["duplicateTRUE", "Q2.5"],
+    fixef(mod_bys_accuracy_mole_grade5)["duplicateTRUE", "Q2.5"],
+    fixef(mod_bys_accuracy_mole_grade6)["duplicateTRUE", "Q2.5"],
+    fixef(mod_bys_accuracy_mole_grade7)["duplicateTRUE", "Q2.5"]
+  ),
+    Q97.5 = c(
+    fixef(mod_bys_accuracy_mole_grade3)["duplicateTRUE", "Q97.5"],
+    fixef(mod_bys_accuracy_mole_grade4)["duplicateTRUE", "Q97.5"],
+    fixef(mod_bys_accuracy_mole_grade5)["duplicateTRUE", "Q97.5"],
+    fixef(mod_bys_accuracy_mole_grade6)["duplicateTRUE", "Q97.5"],
+    fixef(mod_bys_accuracy_mole_grade7)["duplicateTRUE", "Q97.5"]
+  )
+)
+
+
+grade_coefficients_mole_duplicate_plot <- grade_coefficients_mole_duplicate %>%
+  ggplot(aes(x = factor(grade), y = estimate)) +
+  geom_point() +
+  geom_errorbar(aes(ymin = Q2.5, ymax = Q97.5), width = 0.2) +
+  labs(
+    title = "Effect of duplicate across Grades\n(Mole Game)",
+    x = "Grade",
+    y = "Posterior Mean with 95% CI"
+  ) +
+  theme_minimal()
+
+```
+
+```{r}
+grade_coefficients_mole_structured_plot  + grade_coefficients_mole_setsize_plot /  grade_coefficients_mole_duplicate_plot
+```
+
+## Students with Similar Ability
+
+We have checked the estimates for each grade above. Now, we select students with similar ability from grades 4 and 6 to compare the estimates.
+
+```{r}
+train_logs_40_mdr_half_last_ability <- train_logs_40_mdr_half %>%
+  group_by(user_id, grade) %>%
+  filter(created == max(created)) %>%
+  ungroup()
+```
+```{r}
+train_logs_40_mdr_half_last_ability %>%
+  ggplot(aes(x = new_user_domain_rating, fill = factor(grade))) +
+  geom_density(alpha = 0.4) +
+  labs(x = "User Domain Rating", fill = "Grade")
+
+```
+```{r}
+train_logs_40_mdr_half_last_ability %>%
+  filter(grade %in% c(4, 6)) %>%
+  ggplot(aes(x = new_user_domain_rating, fill = factor(grade))) +
+  geom_density(alpha = 0.4) +
+  labs(fill = "Grade", x = "Ability", title = "Ability Distributions for Grades 4 & 6")
+
+```
+
+```{r}
+train_logs_40_mdr_half_last_ability %>%
+  filter(grade %in% c(4, 6)) %>%
+  group_by(grade) %>%
+  summarise(min = min(new_user_domain_rating),
+            q1 = quantile(new_user_domain_rating, 0.25),
+            median = median(new_user_domain_rating),
+            q3 = quantile(new_user_domain_rating, 0.75),
+            max = max(new_user_domain_rating),
+            .groups = "drop")
+
+similar_students <- train_logs_40_mdr_half_last_ability %>%
+  filter(grade %in% c(4, 6),
+         new_user_domain_rating > 14, #q1 rating for grade 6 : 11
+         new_user_domain_rating < 16)  #q3 rating for grade 4 : 16
+similar_students %>% count(grade)
+```
+
+```{r}
+# I want to pull userid-grade info and select in the logs 
+
+similar_students <- similar_students %>%
+  mutate(user_grade = paste0(user_id, "_", grade)) %>%
+  pull(user_grade)
+
+train_logs_40_mdr_half_grade46_similarAbility <- train_logs_40_mdr_half %>% 
+  mutate(user_grade_logs = paste0(user_id, "_", grade)) %>% 
+  filter(user_grade_logs %in% similar_students)
+
+train_logs_40_mdr_half_grade4_similarAbility <- train_logs_40_mdr_half_grade46_similarAbility %>% 
+  filter(grade == 4)
+
+train_logs_40_mdr_half_grade6_similarAbility <- train_logs_40_mdr_half_grade46_similarAbility %>% 
+  filter(grade == 6)
+```
+
+
+### Grade 4
+```{r include=FALSE}
+# Long format
+
+train_logs_40_mdr_half_grade4_similarAbility_long <- train_logs_40_mdr_half_grade4_similarAbility %>%
+
+  pivot_longer(cols = starts_with("position_"), names_to = "position", values_to = "accuracy") %>%
+  filter(!is.na(accuracy)) %>%
+  mutate(position_continuous = as.numeric(case_when(
+    position == "position_1" ~ "1",
+    position == "position_2" ~ "2",
+    position == "position_3" ~ "3",
+    position == "position_4" ~ "4",
+    position == "position_5" ~ "5",
+    position == "position_6" ~ "6",
+    TRUE ~ NA_character_
+  ))) %>%
+  inner_join(items_40_temp, by = c("set_size", "item_id", "position_continuous")) %>%
+  mutate(last_item = set_size == position_continuous) %>%
+  mutate(last_second_item = (set_size-1) == position_continuous) %>%
+  mutate(position_rate = round(position_continuous / set_size,2))
+```
+```{r}
+# priors <- c(
+#  set_prior("normal(0, 1)", class = "Intercept"),
+#  set_prior("normal(0, 1)", class = "b", coef = "difficulty"),
+#  set_prior("normal(0, 1.5)", class = "b", coef = "position_rate"),
+#  set_prior("normal(0, 1)", class = "b", coef = "set_size"),
+#  set_prior("normal(0, 1)", class = "b", coef = "duplicateTRUE"),
+#  set_prior("normal(0, 1)", class = "b", coef = "structuredTRUE"),
+#  set_prior("normal(0, 1)", class = "b", coef = "last_itemTRUE"),
+#  set_prior("normal(0, 1)", class = "b", coef = "last_second_itemTRUE"),
+#  set_prior("normal(0, 2)", class = "sd")
+# )
+
+# mod_bys_40_grade4_similarAbility_strict <- brm(
+#   accuracy ~ (1 | user_id) + (1 | item_id) + difficulty + position_rate+ set_size + duplicate + structured + last_item + last_second_item,
+#   data = train_logs_40_mdr_half_grade4_similarAbility_long,
+#   family = bernoulli(),
+#   prior = priors,
+#   warmup = 500,
+#   iter = 2000,
+#   cores = 4
+# )
+# saveRDS(mod_bys_40_grade4_similarAbility_strict, file = "~/code_seyma/WMDevelopmentProject/mod_bys_40_grade4_similarAbility_strict.rds")
+```
+```{r}
+mod_bys_40_grade4_similarAbility_strict <- readRDS(file = "~/code_seyma/WMDevelopmentProject/models/mod_bys_40_grade4_similarAbility_strict.rds")
+summary(mod_bys_40_grade4_similarAbility_strict)
+```
+### Grade 6
+```{r include=FALSE}
+# Long format
+
+train_logs_40_mdr_half_grade6_similarAbility_long <- train_logs_40_mdr_half_grade6_similarAbility %>%
+
+  pivot_longer(cols = starts_with("position_"), names_to = "position", values_to = "accuracy") %>%
+  filter(!is.na(accuracy)) %>%
+  mutate(position_continuous = as.numeric(case_when(
+    position == "position_1" ~ "1",
+    position == "position_2" ~ "2",
+    position == "position_3" ~ "3",
+    position == "position_4" ~ "4",
+    position == "position_5" ~ "5",
+    position == "position_6" ~ "6",
+    TRUE ~ NA_character_
+  ))) %>%
+  inner_join(items_40_temp, by = c("set_size", "item_id", "position_continuous")) %>%
+  mutate(last_item = set_size == position_continuous) %>%
+  mutate(last_second_item = (set_size-1) == position_continuous) %>%
+  mutate(position_rate = round(position_continuous / set_size,2))
+```
+```{r}
+# priors <- c(
+#  set_prior("normal(0, 1)", class = "Intercept"),
+#  set_prior("normal(0, 1)", class = "b", coef = "difficulty"),
+#  set_prior("normal(0, 1.5)", class = "b", coef = "position_rate"),
+#  set_prior("normal(0, 1)", class = "b", coef = "set_size"),
+#  set_prior("normal(0, 1)", class = "b", coef = "duplicateTRUE"),
+#  set_prior("normal(0, 1)", class = "b", coef = "structuredTRUE"),
+#  set_prior("normal(0, 1)", class = "b", coef = "last_itemTRUE"),
+#  set_prior("normal(0, 1)", class = "b", coef = "last_second_itemTRUE"),
+#  set_prior("normal(0, 2)", class = "sd")
+# )
+
+# mod_bys_40_grade6_similarAbility_strict <- brm(
+#   accuracy ~ (1 | user_id) + (1 | item_id) + difficulty + position_rate+ set_size + duplicate + structured + last_item + last_second_item,
+#   data = train_logs_40_mdr_half_grade6_similarAbility_long,
+#   family = bernoulli(),
+#   prior = priors,
+#   warmup = 500,
+#   iter = 2000,
+#   cores = 4
+# )
+# saveRDS(mod_bys_40_grade6_similarAbility_strict, file = "~/code_seyma/WMDevelopmentProject/mod_bys_40_grade6_similarAbility_strict.rds")
+```
+```{r}
+mod_bys_40_grade6_similarAbility_strict <- readRDS(file = "~/code_seyma/WMDevelopmentProject/models/mod_bys_40_grade4_similarAbility_strict.rds")
+summary(mod_bys_40_grade6_similarAbility_strict)
+```
+
+###Plots 
+
+```{r include=FALSE}
+grade46_strict_primacy_mole <- data.frame(
+  grade = c(4, 6),
+  estimate = c(
+    fixef(mod_bys_40_grade4_similarAbility_strict)["position_rate", "Estimate"],
+    fixef(mod_bys_40_grade6_similarAbility_strict)["position_rate", "Estimate"]
+  ),
+  Q2.5 = c(
+    fixef(mod_bys_40_grade4_similarAbility_strict)["position_rate", "Q2.5"],
+    fixef(mod_bys_40_grade6_similarAbility_strict)["position_rate", "Q2.5"]
+  ),
+    Q97.5 = c(
+    fixef(mod_bys_40_grade4_similarAbility_strict)["position_rate", "Q97.5"],
+    fixef(mod_bys_40_grade6_similarAbility_strict)["position_rate", "Q97.5"]
+  )
+)
+
+grade46_strict_recency_mole <- data.frame(
+  grade = c(4, 6),
+  estimate = c(
+    fixef(mod_bys_40_grade4_similarAbility_strict)["last_itemTRUE", "Estimate"],
+    fixef(mod_bys_40_grade6_similarAbility_strict)["last_itemTRUE", "Estimate"]
+  ),
+  Q2.5 = c(
+    fixef(mod_bys_40_grade4_similarAbility_strict)["last_itemTRUE", "Q2.5"],
+    fixef(mod_bys_40_grade6_similarAbility_strict)["last_itemTRUE", "Q2.5"]
+  ),
+    Q97.5 = c(
+    fixef(mod_bys_40_grade4_similarAbility_strict)["last_itemTRUE", "Q97.5"],
+    fixef(mod_bys_40_grade6_similarAbility_strict)["last_itemTRUE", "Q97.5"]
+  )
+)
+
+#Plots
+
+grade46_strict_primacy_mole_plot <- grade46_strict_primacy_mole %>%
+  ggplot(aes(x = factor(grade), y = estimate)) +
+  geom_point() +
+  geom_errorbar(aes(ymin = Q2.5, ymax = Q97.5), width = 0.2) +
+  labs(
+    title = "position_rate \n(Mole Game)(Strict)",
+    x = "Grade",
+    y = "Estimate & 95% CI"
+  ) +
+  theme_minimal()
+
+grade46_strict_recency_mole_plot <- grade46_strict_recency_mole %>%
+  ggplot(aes(x = factor(grade), y = estimate)) +
+  geom_point() +
+  geom_errorbar(aes(ymin = Q2.5, ymax = Q97.5), width = 0.2) +
+  labs(
+    title = "last item \n(Mole Game)(Strict)",
+    x = "Grade",
+    y = "Estimate & 95% CI"
+  ) +
+  theme_minimal()
+```
+
+```{r include=FALSE}
+grade46_primacy_mole_all <- data.frame(
+  grade = c(4, 6),
+  estimate = c(
+    fixef(mod_bys_accuracy_mole_grade4)["position_rate", "Estimate"],
+    fixef(mod_bys_accuracy_mole_grade6)["position_rate", "Estimate"]
+  ),
+  Q2.5 = c(
+    fixef(mod_bys_accuracy_mole_grade4)["position_rate", "Q2.5"],
+    fixef(mod_bys_accuracy_mole_grade6)["position_rate", "Q2.5"]
+  ),
+    Q97.5 = c(
+    fixef(mod_bys_accuracy_mole_grade4)["position_rate", "Q97.5"],
+    fixef(mod_bys_accuracy_mole_grade6)["position_rate", "Q97.5"]
+  )
+)
+
+grade46_recncy_mole_all <- data.frame(
+  grade = c(4, 6),
+  estimate = c(
+    fixef(mod_bys_accuracy_mole_grade4)["last_itemTRUE", "Estimate"],
+    fixef(mod_bys_accuracy_mole_grade6)["last_itemTRUE", "Estimate"]
+  ),
+  Q2.5 = c(
+    fixef(mod_bys_accuracy_mole_grade4)["last_itemTRUE", "Q2.5"],
+    fixef(mod_bys_accuracy_mole_grade6)["last_itemTRUE", "Q2.5"]
+  ),
+    Q97.5 = c(
+    fixef(mod_bys_accuracy_mole_grade4)["last_itemTRUE", "Q97.5"],
+    fixef(mod_bys_accuracy_mole_grade6)["last_itemTRUE", "Q97.5"]
+  )
+)
+
+
+grade46_primacy_mole_all_plot <- grade46_primacy_mole_all %>%
+  ggplot(aes(x = factor(grade), y = estimate)) +
+  geom_point() +
+  geom_errorbar(aes(ymin = Q2.5, ymax = Q97.5), width = 0.2) +
+  labs(
+    title = "position_rate \n(Mole Game)(All)",
+    x = "Grade",
+    y = "Estimate & 95% CI"
+  ) +
+  theme_minimal()
+
+grade46_recncy_mole_all_plot <- grade46_recncy_mole_all %>%
+  ggplot(aes(x = factor(grade), y = estimate)) +
+  geom_point() +
+  geom_errorbar(aes(ymin = Q2.5, ymax = Q97.5), width = 0.2) +
+  labs(
+    title = "last item \n(Mole Game)(All)",
+    x = "Grade",
+    y = "Estimate & 95% CI"
+  ) +
+  theme_minimal()
+
+```
+
+```{r}
+capacity4mole <- train_logs_40_mdr_half_grade46_similarAbility %>% 
+  filter(grade == 4) %>% 
+  group_by(user_id) %>% 
+  summarise(capacity = max(set_size))
+capacity6mole <- train_logs_40_mdr_half_grade46_similarAbility %>% 
+  filter(grade == 6) %>% 
+  group_by(user_id) %>% 
+  summarise(capacity = max(set_size))
+
+prop.table(table(capacity4mole$capacity)) 
+prop.table(table(capacity6mole$capacity)) 
+
+#Set size 5 is the most frequent ones for both grades but there is also setsize 4 in grade 6. 
+
+tbl4mole <- prop.table(table(capacity4mole$capacity)) * 100
+percent_grade4mole <- paste(names(tbl4mole), "=", round(tbl4mole, 2), "%", collapse = ", ")
+
+
+tbl6mole <- prop.table(table(capacity6mole$capacity)) * 100
+percent_grade6mole <- paste(names(tbl6mole), "=", round(tbl6mole, 2), "%", collapse = ", ")
+```
+
+```{r}
+capacity4moleAll <- train_logs_40_mdr_half_grade4 %>% 
+  group_by(user_id) %>% 
+  summarise(capacity = max(set_size))
+capacity6moleAll <- train_logs_40_mdr_half_grade6 %>% 
+  group_by(user_id) %>% 
+  summarise(capacity = max(set_size))
+
+prop.table(table(capacity4moleAll$capacity)) 
+prop.table(table(capacity6moleAll$capacity)) 
+
+tbl4moleALL <- prop.table(table(capacity4moleAll$capacity)) * 100
+percent_grade4ALLmole <- paste(names(tbl4moleALL), "=", round(tbl4moleALL, 2), "%", collapse = ", ")
+
+
+tbl6moleALL <- prop.table(table(capacity6moleAll$capacity)) * 100
+percent_grade6ALLmole <- paste(names(tbl6moleALL), "=", round(tbl6moleALL, 2), "%", collapse = ", ")
+```
+
+```{r fig.height=10, fig.width=10}
+(grade46_strict_primacy_mole_plot + grade46_strict_recency_mole_plot) / 
+(grade46_primacy_mole_all_plot + grade46_recncy_mole_all_plot) +
+  plot_annotation(title =  'Bayesian: all students vs  14<student rating<16',
+    caption = paste("Strict Students Max Setsize Percentages:\nGrade 4:", percent_grade4mole, "\nGrade 6:", percent_grade6mole, "\nAll data Max Setsize:\nGrade 4:",percent_grade4ALLmole,  "\nGrade 6:", percent_grade6ALLmole )
+  )
+
+```
+
+## Interaction Models
+
+In the mole game we check both set size interaction and structure interaction seperatly. mod0 is the model without interaction - what we have done above, mod1 is the interaction of set size with position rate and last item. I haven't included the second last item as the estimate is small and the model is already complex. mod2 is for the interaction between structure and position rate & last item. 
+
+- The model don't converge for grade 3. 
+- I could not compare models using BF, AIC, loo. All just failed. I used 10 percent data at some point and the I could compare some models. I add the results of comparisons at the end but in short, the complex model are not or barely better than simpler models statistically.  
+
+### Grade 4
+```{r include=FALSE}
+# Long format
+
+train_logs_40_mdr_half_grade4_long <- train_logs_40_mdr_half_grade4 %>%
+
+  pivot_longer(cols = starts_with("position_"), names_to = "position", values_to = "accuracy") %>%
+  filter(!is.na(accuracy)) %>%
+  mutate(position_continuous = as.numeric(case_when(
+    position == "position_1" ~ "1",
+    position == "position_2" ~ "2",
+    position == "position_3" ~ "3",
+    position == "position_4" ~ "4",
+    position == "position_5" ~ "5",
+    position == "position_6" ~ "6",
+    TRUE ~ NA_character_
+  ))) %>%
+  inner_join(items_40_temp, by = c("set_size", "item_id", "position_continuous")) %>%
+  mutate(last_item = set_size == position_continuous) %>%
+  mutate(last_second_item = (set_size-1) == position_continuous) %>%
+  mutate(position_rate = round(position_continuous / set_size,2))
+
+# Priors 
+
+# priors <- c(
+#  set_prior("normal(0, 1)", class = "Intercept"),
+#  set_prior("normal(0, 1)", class = "b", coef = "difficulty"),
+#  set_prior("normal(0, 1.5)", class = "b", coef = "position_rate"),
+#  set_prior("normal(0, 1)", class = "b", coef = "set_size"),
+#  set_prior("normal(0, 1)", class = "b", coef = "duplicateTRUE"),
+#  set_prior("normal(0, 1)", class = "b", coef = "structuredTRUE"),
+#  set_prior("normal(0, 1)", class = "b", coef = "last_itemTRUE"),
+#  set_prior("normal(0, 1)", class = "b", coef = "last_second_itemTRUE"),
+#  set_prior("normal(0, 2)", class = "sd")
+# )
+```
+
+#### Set Size Interaction
+
+```{r}
+# mod1_accuracy_mole_bys_grade4 <- brm(
+#   accuracy ~ (1 | user_id) + (1 | item_id) + difficulty + position_rate * set_size + duplicate + structured + last_item * set_size + last_second_item,
+#   data = train_logs_40_mdr_half_grade4_long,
+#   family = bernoulli(),
+#   prior = priors,
+#   warmup = 500,
+#   iter = 2000,
+#   cores = 4,
+#   save_pars = save_pars(all = TRUE)
+# )
+# saveRDS(mod1_accuracy_mole_bys_grade4, file = "~/code_seyma/WMDevelopmentProject/mod1_accuracy_mole_bys_grade4.rds")
+```
+```{r}
+mod1_accuracy_mole_bys_grade4 <- readRDS(file = "~/code_seyma/WMDevelopmentProject/models/mod1_accuracy_mole_bys_grade4.rds")
+summary(mod1_accuracy_mole_bys_grade4)
+```
+#### Structure Interaction
+
+```{r}
+# mod2_accuracy_mole_bys_grade4 <- brm(
+#   accuracy ~ (1 | user_id) + (1 | item_id) + difficulty + position_rate * structured + duplicate + set_size + last_item * structured + last_second_item,
+#   data = train_logs_40_mdr_half_grade4_long,
+#   family = bernoulli(),
+#   prior = priors,
+#   warmup = 500,
+#   iter = 2000,
+#   cores = 4,
+#   save_pars = save_pars(all = TRUE)
+# )
+# saveRDS(mod2_accuracy_mole_bys_grade4, file = "~/code_seyma/WMDevelopmentProject/models/mod2_accuracy_mole_bys_grade4.rds")
+```
+```{r}
+mod2_accuracy_mole_bys_grade4 <- readRDS(file = "~/code_seyma/WMDevelopmentProject/models/mod2_accuracy_mole_bys_grade4.rds")
+summary(mod2_accuracy_mole_bys_grade4)
+```
+
+### Grade 5
+
+```{r include=FALSE}
+# Long format
+
+train_logs_40_mdr_half_grade5_long <- train_logs_40_mdr_half_grade5 %>%
+
+  pivot_longer(cols = starts_with("position_"), names_to = "position", values_to = "accuracy") %>%
+  filter(!is.na(accuracy)) %>%
+  mutate(position_continuous = as.numeric(case_when(
+    position == "position_1" ~ "1",
+    position == "position_2" ~ "2",
+    position == "position_3" ~ "3",
+    position == "position_4" ~ "4",
+    position == "position_5" ~ "5",
+    position == "position_6" ~ "6",
+    TRUE ~ NA_character_
+  ))) %>%
+  inner_join(items_40_temp, by = c("set_size", "item_id", "position_continuous")) %>%
+  mutate(last_item = set_size == position_continuous) %>%
+  mutate(last_second_item = (set_size-1) == position_continuous) %>%
+  mutate(position_rate = round(position_continuous / set_size,2))
+
+# Priors 
+
+# priors <- c(
+#  set_prior("normal(0, 1)", class = "Intercept"),
+#  set_prior("normal(0, 1)", class = "b", coef = "difficulty"),
+#  set_prior("normal(0, 1.5)", class = "b", coef = "position_rate"),
+#  set_prior("normal(0, 1)", class = "b", coef = "set_size"),
+#  set_prior("normal(0, 1)", class = "b", coef = "duplicateTRUE"),
+#  set_prior("normal(0, 1)", class = "b", coef = "structuredTRUE"),
+#  set_prior("normal(0, 1)", class = "b", coef = "last_itemTRUE"),
+#  set_prior("normal(0, 1)", class = "b", coef = "last_second_itemTRUE"),
+#  set_prior("normal(0, 2)", class = "sd")
+# )
+```
+
+#### Set Size Interaction
+
+```{r}
+# mod1_accuracy_mole_bys_grade5 <- brm(
+#   accuracy ~ (1 | user_id) + (1 | item_id) + difficulty + position_rate * set_size + duplicate + structured + last_item * set_size + last_second_item,
+#   data = train_logs_40_mdr_half_grade5_long,
+#   family = bernoulli(),
+#   prior = priors,
+#   warmup = 500,
+#   iter = 2000,
+#   cores = 4,
+#   save_pars = save_pars(all = TRUE)
+# )
+# saveRDS(mod1_accuracy_mole_bys_grade5, file = "~/code_seyma/WMDevelopmentProject/model/mod1_accuracy_mole_bys_grade5.rds")
+```
+```{r}
+mod1_accuracy_mole_bys_grade5 <- readRDS(file = "~/code_seyma/WMDevelopmentProject/models/mod1_accuracy_mole_bys_grade5.rds")
+summary(mod1_accuracy_mole_bys_grade5)
+```
+
+#### Structure Interaction
+
+```{r}
+# mod2_accuracy_mole_bys_grade5 <- brm(
+#   accuracy ~ (1 | user_id) + (1 | item_id) + difficulty + position_rate * structured + duplicate + set_size + last_item * structured + last_second_item,
+#   data = train_logs_40_mdr_half_grade5_long,
+#   family = bernoulli(),
+#   prior = priors,
+#   warmup = 500,
+#   iter = 2000,
+#   cores = 4,
+#   save_pars = save_pars(all = TRUE)
+# )
+#saveRDS(mod2_accuracy_mole_bys_grade5, file = "~/code_seyma/WMDevelopmentProject/models/mod2_accuracy_mole_bys_grade5.rds")
+```
+```{r}
+mod2_accuracy_mole_bys_grade5 <- readRDS(file = "~/code_seyma/WMDevelopmentProject/models/mod2_accuracy_mole_bys_grade5.rds")
+summary(mod2_accuracy_mole_bys_grade5)
+```
+
+### Grade 6
+
+```{r include=FALSE}
+# Long format
+
+train_logs_40_mdr_half_grade6_long <- train_logs_40_mdr_half_grade6 %>%
+
+  pivot_longer(cols = starts_with("position_"), names_to = "position", values_to = "accuracy") %>%
+  filter(!is.na(accuracy)) %>%
+  mutate(position_continuous = as.numeric(case_when(
+    position == "position_1" ~ "1",
+    position == "position_2" ~ "2",
+    position == "position_3" ~ "3",
+    position == "position_4" ~ "4",
+    position == "position_5" ~ "5",
+    position == "position_6" ~ "6",
+    TRUE ~ NA_character_
+  ))) %>%
+  inner_join(items_40_temp, by = c("set_size", "item_id", "position_continuous")) %>%
+  mutate(last_item = set_size == position_continuous) %>%
+  mutate(last_second_item = (set_size-1) == position_continuous) %>%
+  mutate(position_rate = round(position_continuous / set_size,2))
+
+# Priors 
+
+# priors <- c(
+#  set_prior("normal(0, 1)", class = "Intercept"),
+#  set_prior("normal(0, 1)", class = "b", coef = "difficulty"),
+#  set_prior("normal(0, 1.5)", class = "b", coef = "position_rate"),
+#  set_prior("normal(0, 1)", class = "b", coef = "set_size"),
+#  set_prior("normal(0, 1)", class = "b", coef = "duplicateTRUE"),
+#  set_prior("normal(0, 1)", class = "b", coef = "structuredTRUE"),
+#  set_prior("normal(0, 1)", class = "b", coef = "last_itemTRUE"),
+#  set_prior("normal(0, 1)", class = "b", coef = "last_second_itemTRUE"),
+#  set_prior("normal(0, 2)", class = "sd")
+# )
+```
+
+
+#### Set Size Interaction
+
+```{r}
+# mod1_accuracy_mole_bys_grade6 <- brm(
+#   accuracy ~ (1 | user_id) + (1 | item_id) + difficulty + position_rate * set_size + duplicate + structured + last_item * set_size + last_second_item,
+#   data = train_logs_40_mdr_half_grade6_long,
+#   family = bernoulli(),
+#   prior = priors,
+#   warmup = 500,
+#   iter = 2000,
+#   cores = 4,
+#   save_pars = save_pars(all = TRUE)
+# )
+# saveRDS(mod1_accuracy_mole_bys_grade6, file = "~/code_seyma/WMDevelopmentProject/models/mod1_accuracy_mole_bys_grade6.rds")
+```
+```{r}
+mod1_accuracy_mole_bys_grade6 <- readRDS(file = "~/code_seyma/WMDevelopmentProject/models/mod1_accuracy_mole_bys_grade6.rds")
+summary(mod1_accuracy_mole_bys_grade6)
+```
+
+#### Structure Interaction
+
+```{r}
+# mod2_accuracy_mole_bys_grade6 <- brm(
+#   accuracy ~ (1 | user_id) + (1 | item_id) + difficulty + position_rate * structured + duplicate + set_size + last_item * structured + last_second_item,
+#   data = train_logs_40_mdr_half_grade6_long,
+#   family = bernoulli(),
+#   prior = priors,
+#   warmup = 500,
+#   iter = 2000,
+#   cores = 4,
+#   save_pars = save_pars(all = TRUE)
+# )
+# saveRDS(mod2_accuracy_mole_bys_grade6, file = "~/code_seyma/WMDevelopmentProject/models/mod2_accuracy_mole_bys_grade6.rds")
+```
+```{r}
+mod2_accuracy_mole_bys_grade6 <- readRDS(file = "~/code_seyma/WMDevelopmentProject/models/mod2_accuracy_mole_bys_grade6.rds")
+summary(mod2_accuracy_mole_bys_grade6)
+```
+
+### Grade 7
+```{r include=FALSE}
+# Long format
+
+train_logs_40_mdr_half_grade7_long <- train_logs_40_mdr_half_grade7 %>%
+
+  pivot_longer(cols = starts_with("position_"), names_to = "position", values_to = "accuracy") %>%
+  filter(!is.na(accuracy)) %>%
+  mutate(position_continuous = as.numeric(case_when(
+    position == "position_1" ~ "1",
+    position == "position_2" ~ "2",
+    position == "position_3" ~ "3",
+    position == "position_4" ~ "4",
+    position == "position_5" ~ "5",
+    position == "position_6" ~ "6",
+    TRUE ~ NA_character_
+  ))) %>%
+  inner_join(items_40_temp, by = c("set_size", "item_id", "position_continuous")) %>%
+  mutate(last_item = set_size == position_continuous) %>%
+  mutate(last_second_item = (set_size-1) == position_continuous) %>%
+  mutate(position_rate = round(position_continuous / set_size,2))
+
+# Priors 
+
+# priors <- c(
+#  set_prior("normal(0, 1)", class = "Intercept"),
+#  set_prior("normal(0, 1)", class = "b", coef = "difficulty"),
+#  set_prior("normal(0, 1.5)", class = "b", coef = "position_rate"),
+#  set_prior("normal(0, 1)", class = "b", coef = "set_size"),
+#  set_prior("normal(0, 1)", class = "b", coef = "duplicateTRUE"),
+#  set_prior("normal(0, 1)", class = "b", coef = "structuredTRUE"),
+#  set_prior("normal(0, 1)", class = "b", coef = "last_itemTRUE"),
+#  set_prior("normal(0, 1)", class = "b", coef = "last_second_itemTRUE"),
+#  set_prior("normal(0, 2)", class = "sd")
+# )
+```
+
+
+```{r}
+#model0: 
+
+# mod_bys_accuracy_mole_grade7 <- brm(
+#   accuracy ~ (1 | user_id) + (1 | item_id) + difficulty + position_rate+ set_size + duplicate + structured + last_item + last_second_item,
+#   data = train_logs_40_mdr_half_grade7_long,
+#   family = bernoulli(),
+#   prior = priors,
+#   warmup = 500,
+#   iter = 2000,
+#   cores = 4
+#   save_pars = save_pars(all = TRUE)
+# )
+# saveRDS(mod_bys_accuracy_mole_grade7, file = "~/code_seyma/WMDevelopmentProject/mod_bys_accuracy_mole_grade7.rds")
+
+mod0_accuracy_mole_bys_grade7 <-  readRDS("~/code_seyma/WMDevelopmentProject/models/mod_bys_accuracy_mole_grade7.rds")
+```
+
+####Set Size Interaction
+
+```{r}
+# mod1_accuracy_mole_bys_grade7 <- brm(
+#   accuracy ~ (1 | user_id) + (1 | item_id) + difficulty + position_rate * set_size + duplicate + structured + last_item * set_size + last_second_item,
+#   data = train_logs_40_mdr_half_grade7_long,
+#   family = bernoulli(),
+#   prior = priors,
+#   warmup = 500,
+#   iter = 2000,
+#   cores = 4,
+#   save_pars = save_pars(all = TRUE)
+# )
+# saveRDS(mod1_accuracy_mole_bys_grade7, file = "~/code_seyma/WMDevelopmentProject/mod1_accuracy_mole_bys_grade7.rds")
+```
+```{r}
+mod1_accuracy_mole_bys_grade7 <- readRDS(file = "~/code_seyma/WMDevelopmentProject/models/mod1_accuracy_mole_bys_grade7.rds")
+summary(mod1_accuracy_mole_bys_grade7)
+```
+
+- The larger the set size the more primacy and receny effect. But the main effects are gone now. 
+
+####Structure Interaction
+
+```{r}
+# mod2_accuracy_mole_bys_grade7 <- brm(
+#   accuracy ~ (1 | user_id) + (1 | item_id) + difficulty + position_rate * structured + duplicate + set_size + last_item * structured + last_second_item,
+#   data = train_logs_40_mdr_half_grade7_long,
+#   family = bernoulli(),
+#   prior = priors,
+#   warmup = 500,
+#   iter = 2000,
+#   cores = 4,
+#   save_pars = save_pars(all = TRUE)
+# )
+# saveRDS(mod2_accuracy_mole_bys_grade7, file = "~/code_seyma/WMDevelopmentProject/mod2_accuracy_mole_bys_grade7.rds")
+```
+```{r}
+mod2_accuracy_mole_bys_grade7 <- readRDS(file = "~/code_seyma/WMDevelopmentProject/models/mod2_accuracy_mole_bys_grade7.rds")
+summary(mod2_accuracy_mole_bys_grade7)
+```
+
+
+- position_rate seems to have a similar negative effect for both structured and unstructured cases.
+-being the last item boosts accuracy even more in structured sequences compared to unstructured ones.
+
+I cannot compare the models. Loo, waic terminates R. bayes_factor function cannot compute log marg. likelyhood. I will try with less data. It's already half data with grade 7. 
+
+### Mod1 estimate change by grade
+
+```{r include=FALSE}
+grade_primacySetsize_number <- data.frame(
+  grade = c(4,5,6, 7),
+  estimate = c(
+    fixef(mod1_accuracy_mole_bys_grade4)["position_rate:set_size", "Estimate"],
+    fixef(mod1_accuracy_mole_bys_grade5)["position_rate:set_size", "Estimate"],
+    fixef(mod1_accuracy_mole_bys_grade6)["position_rate:set_size", "Estimate"],
+    fixef(mod1_accuracy_mole_bys_grade7)["position_rate:set_size", "Estimate"]
+  ),
+  Q2.5 = c(
+    fixef(mod1_accuracy_mole_bys_grade4)["position_rate:set_size", "Q2.5"],
+    fixef(mod1_accuracy_mole_bys_grade5)["position_rate:set_size", "Q2.5"],
+    fixef(mod1_accuracy_mole_bys_grade6)["position_rate:set_size", "Q2.5"],
+    fixef(mod1_accuracy_mole_bys_grade7)["position_rate:set_size", "Q2.5"]
+  ),
+    Q97.5 = c(
+    fixef(mod1_accuracy_mole_bys_grade4)["position_rate:set_size", "Q97.5"],
+    fixef(mod1_accuracy_mole_bys_grade5)["position_rate:set_size", "Q97.5"],
+    fixef(mod1_accuracy_mole_bys_grade6)["position_rate:set_size", "Q97.5"],
+    fixef(mod1_accuracy_mole_bys_grade7)["position_rate:set_size", "Q97.5"]
+  )
+)
+
+grade_recencySetsize_number <- data.frame(
+  grade = c(4, 5,6, 7),
+  estimate = c(
+    fixef(mod1_accuracy_mole_bys_grade4)["set_size:last_itemTRUE", "Estimate"],
+    fixef(mod1_accuracy_mole_bys_grade5)["set_size:last_itemTRUE", "Estimate"],
+    fixef(mod1_accuracy_mole_bys_grade6)["set_size:last_itemTRUE", "Estimate"],
+    fixef(mod1_accuracy_mole_bys_grade7)["set_size:last_itemTRUE", "Estimate"]
+  ),
+  Q2.5 = c(
+    fixef(mod1_accuracy_mole_bys_grade4)["set_size:last_itemTRUE", "Q2.5"],
+    fixef(mod1_accuracy_mole_bys_grade5)["set_size:last_itemTRUE", "Q2.5"],
+    fixef(mod1_accuracy_mole_bys_grade6)["set_size:last_itemTRUE", "Q2.5"],
+    fixef(mod1_accuracy_mole_bys_grade7)["set_size:last_itemTRUE", "Q2.5"]
+  ),
+    Q97.5 = c(
+    fixef(mod1_accuracy_mole_bys_grade4)["set_size:last_itemTRUE", "Q97.5"],
+    fixef(mod1_accuracy_mole_bys_grade5)["set_size:last_itemTRUE", "Q97.5"],
+    fixef(mod1_accuracy_mole_bys_grade6)["set_size:last_itemTRUE", "Q97.5"],
+    fixef(mod1_accuracy_mole_bys_grade7)["set_size:last_itemTRUE", "Q97.5"]
+  )
+)
+```
+
+```{r}
+mod1_grade_recency_number_plot <- grade_recencySetsize_number %>% 
+  ggplot(aes(x = factor(grade), y = estimate)) +
+  geom_point() +
+  geom_errorbar(aes(ymin = Q2.5, ymax = Q97.5), width = 0.2) +
+  labs(title = "last item:set size inter.
+       in the Mole Game",
+       x = "Grade", y = "Estimate") +
+  theme_minimal()
+mod1_grade_primacy_number_plot <- grade_primacySetsize_number %>% 
+  ggplot(aes(x = factor(grade), y = estimate)) +
+  geom_point() +
+  geom_errorbar(aes(ymin = Q2.5, ymax = Q97.5), width = 0.2) +
+  labs(title = "position_rate:set_size inter.
+       in the Mole Game",
+       x = "Grade", y = "Estimate") +
+  theme_minimal()
+
+library(patchwork)
+mod1_primacyRecency_plot <- mod1_grade_primacy_number_plot + mod1_grade_recency_number_plot +
+  plot_annotation(title = "Set Size Interaction Effects by grade (Bayesian)")
+
+mod1_primacyRecency_plot
+```
+### Mod2 estimate change by grade
+
+```{r include=FALSE}
+grade_primacyStruct_number <- data.frame(
+  grade = c(4,5,6,7),
+  estimate = c(
+    fixef(mod2_accuracy_mole_bys_grade4)["position_rate:structuredTRUE", "Estimate"],
+    fixef(mod2_accuracy_mole_bys_grade5)["position_rate:structuredTRUE", "Estimate"],
+    fixef(mod2_accuracy_mole_bys_grade6)["position_rate:structuredTRUE", "Estimate"],
+    fixef(mod2_accuracy_mole_bys_grade7)["position_rate:structuredTRUE", "Estimate"]
+  ),
+  Q2.5 = c(
+    fixef(mod2_accuracy_mole_bys_grade4)["position_rate:structuredTRUE", "Q2.5"],
+    fixef(mod2_accuracy_mole_bys_grade5)["position_rate:structuredTRUE", "Q2.5"],
+    fixef(mod2_accuracy_mole_bys_grade6)["position_rate:structuredTRUE", "Q2.5"],
+    fixef(mod2_accuracy_mole_bys_grade7)["position_rate:structuredTRUE", "Q2.5"]
+  ),
+    Q97.5 = c(
+    fixef(mod2_accuracy_mole_bys_grade4)["position_rate:structuredTRUE", "Q97.5"],
+    fixef(mod2_accuracy_mole_bys_grade5)["position_rate:structuredTRUE", "Q97.5"],
+    fixef(mod2_accuracy_mole_bys_grade6)["position_rate:structuredTRUE", "Q97.5"],
+    fixef(mod2_accuracy_mole_bys_grade7)["position_rate:structuredTRUE", "Q97.5"]
+  )
+)
+
+grade_recencyStruct_number <- data.frame(
+  grade = c(4, 5,6, 7),
+  estimate = c(
+    fixef(mod2_accuracy_mole_bys_grade4)["structuredTRUE:last_itemTRUE", "Estimate"],
+    fixef(mod2_accuracy_mole_bys_grade5)["structuredTRUE:last_itemTRUE", "Estimate"],
+    fixef(mod2_accuracy_mole_bys_grade6)["structuredTRUE:last_itemTRUE", "Estimate"],
+    fixef(mod2_accuracy_mole_bys_grade7)["structuredTRUE:last_itemTRUE", "Estimate"]
+  ),
+  Q2.5 = c(
+    fixef(mod2_accuracy_mole_bys_grade4)["structuredTRUE:last_itemTRUE", "Q2.5"],
+    fixef(mod2_accuracy_mole_bys_grade5)["structuredTRUE:last_itemTRUE", "Q2.5"],
+    fixef(mod2_accuracy_mole_bys_grade6)["structuredTRUE:last_itemTRUE", "Q2.5"],
+    fixef(mod2_accuracy_mole_bys_grade7)["structuredTRUE:last_itemTRUE", "Q2.5"]
+  ),
+    Q97.5 = c(
+    fixef(mod2_accuracy_mole_bys_grade4)["structuredTRUE:last_itemTRUE", "Q97.5"],
+    fixef(mod2_accuracy_mole_bys_grade5)["structuredTRUE:last_itemTRUE", "Q97.5"],
+    fixef(mod2_accuracy_mole_bys_grade6)["structuredTRUE:last_itemTRUE", "Q97.5"],
+    fixef(mod2_accuracy_mole_bys_grade7)["structuredTRUE:last_itemTRUE", "Q97.5"]
+  )
+)
+```
+
+```{r}
+mod2_grade_recency_number_plot <- grade_recencyStruct_number %>% 
+  ggplot(aes(x = factor(grade), y = estimate)) +
+  geom_point() +
+  geom_errorbar(aes(ymin = Q2.5, ymax = Q97.5), width = 0.2) +
+  labs(title = "structuredTRUE:last_itemTRUE
+       in the Mole Game",
+       x = "Grade", y = "Estimate") +
+  theme_minimal()
+mod2_grade_primacy_number_plot <- grade_primacyStruct_number %>% 
+  ggplot(aes(x = factor(grade), y = estimate)) +
+  geom_point() +
+  geom_errorbar(aes(ymin = Q2.5, ymax = Q97.5), width = 0.2) +
+  labs(title = "position_rate:structuredTRUE
+       in the Mole Game",
+       x = "Grade", y = "Estimate") +
+  theme_minimal()
+
+library(patchwork)
+mod2_primacyRecency_plot <- mod2_grade_primacy_number_plot + mod2_grade_recency_number_plot +
+  plot_annotation(title = "Structure Interaction Effects by grade (Bayesian)")
+
+mod2_primacyRecency_plot
+```
+
+
+### Model Comparisons for interaction models
+
+We used 10 percent of the students. 
+
+```{r include=FALSE}
+# Sample 10% of students
+sampled_students <- train_logs_40_mdr_half_grade7 %>%
+  select(user_id) %>%
+  distinct() %>%
+  sample_frac(0.1)
+
+train_logs_40_mdr_half_grade7_10percent <- train_logs_40_mdr_half_grade7 %>%
+  filter(user_id %in% sampled_students$user_id)
+
+
+train_logs_40_mdr_half_grade7_10percent_long <- train_logs_40_mdr_half_grade7_10percent %>%
+  pivot_longer(cols = starts_with("position_"), names_to = "position", values_to = "accuracy") %>%
+  filter(!is.na(accuracy)) %>%
+  mutate(position_continuous = as.numeric(case_when(
+    position == "position_1" ~ "1",
+    position == "position_2" ~ "2",
+    position == "position_3" ~ "3",
+    position == "position_4" ~ "4",
+    position == "position_5" ~ "5",
+    position == "position_6" ~ "6",
+    TRUE ~ NA_character_
+  ))) %>%
+  inner_join(items_40_temp, by = c("set_size", "item_id", "position_continuous")) %>%
+  mutate(last_item = set_size == position_continuous) %>%
+  mutate(last_second_item = (set_size-1) == position_continuous) %>%
+  mutate(position_rate = round(position_continuous / set_size,2))
+
+# Priors 
+
+priors <- c(
+ set_prior("normal(0, 1)", class = "Intercept"),
+ set_prior("normal(0, 1)", class = "b", coef = "difficulty"),
+ set_prior("normal(0, 1.5)", class = "b", coef = "position_rate"),
+ set_prior("normal(0, 1)", class = "b", coef = "set_size"),
+ set_prior("normal(0, 1)", class = "b", coef = "duplicateTRUE"),
+ set_prior("normal(0, 1)", class = "b", coef = "structuredTRUE"),
+ set_prior("normal(0, 1)", class = "b", coef = "last_itemTRUE"),
+ set_prior("normal(0, 1)", class = "b", coef = "last_second_itemTRUE"),
+ set_prior("normal(0, 2)", class = "sd")
+)
+```
+
+```{r include=FALSE}
+#model0: 
+
+# mod0_accuracy_mole_bys_grade7_10 <- brm(
+#   accuracy ~ (1 | user_id) + (1 | item_id) + difficulty + position_rate+ set_size + duplicate + structured + last_item + last_second_item,
+#   data = train_logs_40_mdr_half_grade7_10percent_long,
+#   family = bernoulli(),
+#   prior = priors,
+#   warmup = 500,
+#   iter = 2000,
+#   cores = 4,
+#   save_pars = save_pars(all = TRUE)
+# )
+# saveRDS(mod0_accuracy_mole_bys_grade7_10, file = "~/code_seyma/WMDevelopmentProject/mod0_accuracy_mole_bys_grade7_10.rds")
+
+#mod1 
+
+# mod1_accuracy_mole_bys_grade7_10 <- brm(
+#   accuracy ~ (1 | user_id) + (1 | item_id) + difficulty + position_rate * set_size + duplicate + structured + last_item * set_size + last_second_item,
+#   data = train_logs_40_mdr_half_grade7_10percent_long,
+#   family = bernoulli(),
+#   prior = priors,
+#   warmup = 500,
+#   iter = 2000,
+#   cores = 4,
+#   save_pars = save_pars(all = TRUE)
+# )
+# saveRDS(mod1_accuracy_mole_bys_grade7_10, file = "~/code_seyma/WMDevelopmentProject/mod1_accuracy_mole_bys_grade7_10.rds")
+
+# mod2_accuracy_mole_bys_grade7_10 <- brm(
+#   accuracy ~ (1 | user_id) + (1 | item_id) + difficulty + position_rate * structured + duplicate + set_size + last_item * structured + last_second_item,
+#   data = train_logs_40_mdr_half_grade7_10percent_long,
+#   family = bernoulli(),
+#   prior = priors,
+#   warmup = 500,
+#   iter = 2000,
+#   cores = 4,
+#   save_pars = save_pars(all = TRUE)
+# )
+# saveRDS(mod2_accuracy_mole_bys_grade7_10, file = "~/code_seyma/WMDevelopmentProject/mod2_accuracy_mole_bys_grade7_10.rds")
+```
+
+```{r}
+# mod0_accuracy_mole_bys_grade7_10 <-  readRDS("~/code_seyma/WMDevelopmentProject/mod0_accuracy_mole_bys_grade7_10.rds")
+# mod1_accuracy_mole_bys_grade7_10 <- readRDS(file = "~/code_seyma/WMDevelopmentProject/mod1_accuracy_mole_bys_grade7_10.rds")
+# mod2_accuracy_mole_bys_grade7_10 <- readRDS(file = "~/code_seyma/WMDevelopmentProject/mod2_accuracy_mole_bys_grade7_10.rds")
+
+# bridge0 <- bridge_sampler(mod0_accuracy_mole_bys_grade7_10, method = "warp3")
+# bridge1 <- bridge_sampler(mod1_accuracy_mole_bys_grade7_10, method = "warp3")
+# bridge2 <- bridge_sampler(mod2_accuracy_mole_bys_grade7_10, method = "warp3") #did not work :/ 
+
+#setsize_int_bf <- bf(bridge0,bridge1 )
+```
+The BF for the set size interaction model is less than model without interaction (Estimated Bayes factor in favor of bridge0 over bridge1: 1469.59736). However, posterior for recency and setsize is different for 10 percent student. So i guess we need to count on the frequentist model comparison which says the model does not get better with interaction. 
+
+
+## Summary Mole Game
+
+1. **Models by grade**
+    1. *Primacy* 
+        1. There is no clear developmental chances - *no linear relationship* 
+        2. There is a reverse u shape for the estimates
+            1. *More primacy effect for grade 3 and getting smaller till 5* and then increasing again with increased CI
+        3. Grade 3 takes too much time. Maybe different priors? 
+    2. *Recency* 
+        1. Same as the Primacy effect - *no linear relationship* 
+    3. *Set Size*
+        1. *No change* except grade 3 -  Rhat is 1.01 for set size in the model in grade 3 - 
+    4. *Duplicate* 
+        1. The reverse of primacy and recency- *no linear relationship* 
+    5. *Structure*
+        1. Similar to primacy and recency (more effect for smaller grade levels). - *more linear except grade 7* 
+        
+2. **Students with similar Ability (Comparing grade 4 and 6)**
+    1. When comparing all students, we see that primacy and recency effects are bigger for grade 4
+    2. *There is no difference between different grades who has similar ability levels* 
+3. **Interaction models** 
+    1. *The interaction models do not fit better*. They are too complicated. 
+    2. Set Size Interaction 
+        1. For grades 4, 5, 6, the interaction lose the main effect of set size and last item. For grade 7, position_rate main effect is also lost. 
+        2. The interaction of set size with the last item is similar between grade levels, except for grade 7. 
+        3. The interaction of set size with the position rate increases very slightly by grade. 
+    3. Structure Interaction 
+        1. Position_rate: Structure -> No in grade 7. Small increase from grade 3 to 6 
+        2. Last: Structure -> No chance by grade 
+        
+To sum up, there is no linear relationship between grades. More primacy, receny, syructure effect for earlier grades till grade 5 then in grade 6 and 7 effects increase. Grade 7 is usually exception. Earlier grade models harder to fit. 
+
+# Number Game
+
+```{r}
+#Load the data from the benchmark paper 
+# I need to change the data and include grades 1 and 2 but at the moment let's use this data to explore 
+
+train_logs_66_mdr <- readRDS(file = "/home/user-047/code_seyma/WMBenchmark/data/train_logs_66_review.rds")
+items_66_temp<-readRDS( file = "/home/user-047/code_seyma/WMBenchmark/data/items_66_temp.rds")
+
+```
+
+
+```{r}
+# now half of the students because there would be always pre-registration
+set.seed(871)
+# Select unique students with grade info
+students66 <- train_logs_66_mdr %>%
+  select(user_id, grade) %>%
+  distinct()
+# Sample 50% of students within each grade
+sampled_students66 <- students66 %>%
+  group_by(grade) %>%
+  sample_frac(0.5) %>%
+  ungroup()
+
+train_logs_66_mdr_half <- train_logs_66_mdr %>%
+  filter(user_id %in% sampled_students66$user_id)
+```
+```{r}
+#Grade levels
+
+grades <- unique(train_logs_66_mdr_half$grade)
+
+for (g in grades) {
+  assign(paste0("train_logs_66_mdr_half_grade", g),
+         train_logs_66_mdr_half %>% filter(grade == g))
+}
+```
+
+
+## Grade 3 
+```{r include=FALSE}
+# Long format
+
+train_logs_66_mdr_half_grade3_long <- train_logs_66_mdr_half_grade3 %>%
+
+  pivot_longer(cols = starts_with("position_"), names_to = "position", values_to = "accuracy") %>%
+  filter(!is.na(accuracy)) %>%
+  mutate(position_continuous = as.numeric(case_when(
+    position == "position_1" ~ "1",
+    position == "position_2" ~ "2",
+    position == "position_3" ~ "3",
+    position == "position_4" ~ "4",
+    position == "position_5" ~ "5",
+    position == "position_6" ~ "6",
+    position == "position_7" ~ "7",
+    position == "position_8" ~ "8",
+    TRUE ~ NA_character_
+  ))) %>%
+  inner_join(items_66_temp, by = c("set_size", "item_id", "position_continuous")) %>%
+  mutate(last_item = set_size == position_continuous) %>%
+  mutate(last_second_item = (set_size-1) == position_continuous) %>%
+  mutate(position_rate = round(position_continuous / set_size,2))
+```
+
+
+```{r}
+# priors <- c(
+#   set_prior("normal(0, 1)", class = "Intercept"),
+#   set_prior("normal(0, 1)", class = "b", coef = "difficulty"),
+#   set_prior("normal(0, 1.5)", class = "b", coef = "position_rate"),
+#   set_prior("normal(0, 1)", class = "b", coef = "set_size"),
+#   set_prior("normal(0, 1)", class = "b", coef = "repetitionTRUE"),
+#   set_prior("normal(0, 1)", class = "b", coef = "duplicateTRUE"),
+#   set_prior("normal(0, 1)", class = "b", coef = "last_itemTRUE"),
+#   set_prior("normal(0, 1)", class = "b", coef = "last_second_itemTRUE"),
+#   set_prior("normal(0, 2)", class = "sd")
+# )
+
+# mod_bys_accuracy_number_grade3 <- brm(
+#     accuracy ~ (1 | user_id) + (1 | item_id) + difficulty + position_rate + set_size + repetition + duplicate+ last_item + last_second_item,
+#     data = train_logs_66_mdr_half_grade3_long,
+#     family = bernoulli(),
+#     prior = priors,
+#     warmup = 500,
+#     iter = 2000,
+#     cores = 4)
+# saveRDS(mod_bys_accuracy_number_grade3, file = "~/code_seyma/WMDevelopmentProject/mod_bys_accuracy_number_grade3.rds")
+```
+```{r}
+mod_bys_accuracy_number_grade3 <-  readRDS(file = "~/code_seyma/WMDevelopmentProject/models/mod_bys_accuracy_number_grade3.rds")
+summary(mod_bys_accuracy_number_grade3)
+```
+
+
+## Grade 4 
+```{r include=FALSE}
+# Long format
+
+train_logs_66_mdr_half_grade4_long <- train_logs_66_mdr_half_grade4 %>%
+  pivot_longer(cols = starts_with("position_"), names_to = "position", values_to = "accuracy") %>%
+  filter(!is.na(accuracy)) %>%
+  mutate(position_continuous = as.numeric(case_when(
+    position == "position_1" ~ "1",
+    position == "position_2" ~ "2",
+    position == "position_3" ~ "3",
+    position == "position_4" ~ "4",
+    position == "position_5" ~ "5",
+    position == "position_6" ~ "6",
+    position == "position_7" ~ "7",
+    position == "position_8" ~ "8",
+    TRUE ~ NA_character_
+  ))) %>%
+  inner_join(items_66_temp, by = c("set_size", "item_id", "position_continuous")) %>%
+  mutate(last_item = set_size == position_continuous) %>%
+  mutate(last_second_item = (set_size-1) == position_continuous) %>%
+  mutate(position_rate = round(position_continuous / set_size,2))
+```
+
+
+```{r}
+# priors <- c(
+#   set_prior("normal(0, 1)", class = "Intercept"),
+#   set_prior("normal(0, 1)", class = "b", coef = "difficulty"),
+#   set_prior("normal(0, 1.5)", class = "b", coef = "position_rate"),
+#   set_prior("normal(0, 1)", class = "b", coef = "set_size"),
+#   set_prior("normal(0, 1)", class = "b", coef = "repetitionTRUE"),
+#   set_prior("normal(0, 1)", class = "b", coef = "duplicateTRUE"),
+#   set_prior("normal(0, 1)", class = "b", coef = "last_itemTRUE"),
+#   set_prior("normal(0, 1)", class = "b", coef = "last_second_itemTRUE"),
+#   set_prior("normal(0, 2)", class = "sd")
+# )
+
+# mod_bys_accuracy_number_grade4 <- brm(
+#     accuracy ~ (1 | user_id) + (1 | item_id) + difficulty + position_rate + set_size + repetition + duplicate+ last_item + last_second_item,
+#     data = train_logs_66_mdr_half_grade4_long,
+#     family = bernoulli(),
+#     prior = priors,
+#     warmup = 500,
+#     iter = 2000,
+#     cores = 4)
+# saveRDS(mod_bys_accuracy_number_grade4, file = "~/code_seyma/WMDevelopmentProject/mod_bys_accuracy_number_grade4.rds")
+```
+```{r}
+mod_bys_accuracy_number_grade4 <- readRDS(file = "~/code_seyma/WMDevelopmentProject/models/mod_bys_accuracy_number_grade4.rds")
+summary(mod_bys_accuracy_number_grade4)
+```
+
+## Grade 5 
+```{r include=FALSE}
+# Long format
+
+train_logs_66_mdr_half_grade5_long <- train_logs_66_mdr_half_grade5 %>%
+  pivot_longer(cols = starts_with("position_"), names_to = "position", values_to = "accuracy") %>%
+  filter(!is.na(accuracy)) %>%
+  mutate(position_continuous = as.numeric(case_when(
+    position == "position_1" ~ "1",
+    position == "position_2" ~ "2",
+    position == "position_3" ~ "3",
+    position == "position_4" ~ "4",
+    position == "position_5" ~ "5",
+    position == "position_6" ~ "6",
+    position == "position_7" ~ "7",
+    position == "position_8" ~ "8",
+    TRUE ~ NA_character_
+  ))) %>%
+  inner_join(items_66_temp, by = c("set_size", "item_id", "position_continuous")) %>%
+  mutate(last_item = set_size == position_continuous) %>%
+  mutate(last_second_item = (set_size-1) == position_continuous) %>%
+  mutate(position_rate = round(position_continuous / set_size,2))
+```
+
+
+```{r}
+# priors <- c(
+#   set_prior("normal(0, 1)", class = "Intercept"),
+#   set_prior("normal(0, 1)", class = "b", coef = "difficulty"),
+#   set_prior("normal(0, 1.5)", class = "b", coef = "position_rate"),
+#   set_prior("normal(0, 1)", class = "b", coef = "set_size"),
+#   set_prior("normal(0, 1)", class = "b", coef = "repetitionTRUE"),
+#   set_prior("normal(0, 1)", class = "b", coef = "duplicateTRUE"),
+#   set_prior("normal(0, 1)", class = "b", coef = "last_itemTRUE"),
+#   set_prior("normal(0, 1)", class = "b", coef = "last_second_itemTRUE"),
+#   set_prior("normal(0, 2)", class = "sd")
+# )
+# 
+# mod_bys_accuracy_number_grade5 <- brm(
+#     accuracy ~ (1 | user_id) + (1 | item_id) + difficulty + position_rate + set_size + repetition + duplicate+ last_item + last_second_item,
+#     data = train_logs_66_mdr_half_grade5_long,
+#     family = bernoulli(),
+#     prior = priors,
+#     warmup = 500,
+#     iter = 2000,
+#     cores = 4)
+# saveRDS(mod_bys_accuracy_number_grade5, file = "~/code_seyma/WMDevelopmentProject/mod_bys_accuracy_number_grade5.rds")
+```
+```{r}
+mod_bys_accuracy_number_grade5 <- readRDS(file = "~/code_seyma/WMDevelopmentProject/models/mod_bys_accuracy_number_grade5.rds")
+summary(mod_bys_accuracy_number_grade5)
+```
+
+## Grade 6 
+```{r include=FALSE}
+# Long format
+
+train_logs_66_mdr_half_grade6_long <- train_logs_66_mdr_half_grade6 %>%
+  pivot_longer(cols = starts_with("position_"), names_to = "position", values_to = "accuracy") %>%
+  filter(!is.na(accuracy)) %>%
+  mutate(position_continuous = as.numeric(case_when(
+    position == "position_1" ~ "1",
+    position == "position_2" ~ "2",
+    position == "position_3" ~ "3",
+    position == "position_4" ~ "4",
+    position == "position_5" ~ "5",
+    position == "position_6" ~ "6",
+    position == "position_7" ~ "7",
+    position == "position_8" ~ "8",
+    TRUE ~ NA_character_
+  ))) %>%
+  inner_join(items_66_temp, by = c("set_size", "item_id", "position_continuous")) %>%
+  mutate(
+    last_item = set_size == position_continuous,
+    last_second_item = (set_size - 1) == position_continuous,
+    position_rate = round(position_continuous / set_size, 2)
+  )
+```
+
+
+```{r}
+# priors <- c(
+#   set_prior("normal(0, 1)", class = "Intercept"),
+#   set_prior("normal(0, 1)", class = "b", coef = "difficulty"),
+#   set_prior("normal(0, 1.5)", class = "b", coef = "position_rate"),
+#   set_prior("normal(0, 1)", class = "b", coef = "set_size"),
+#   set_prior("normal(0, 1)", class = "b", coef = "repetitionTRUE"),
+#   set_prior("normal(0, 1)", class = "b", coef = "duplicateTRUE"),
+#   set_prior("normal(0, 1)", class = "b", coef = "last_itemTRUE"),
+#   set_prior("normal(0, 1)", class = "b", coef = "last_second_itemTRUE"),
+#   set_prior("normal(0, 2)", class = "sd")
+# )
+
+# mod_bys_accuracy_number_grade6 <- brm(
+#     accuracy ~ (1 | user_id) + (1 | item_id) + difficulty + position_rate + set_size + repetition + duplicate+ last_item + last_second_item,
+#     data = train_logs_66_mdr_half_grade6_long,
+#     family = bernoulli(),
+#     prior = priors,
+#     warmup = 500,
+#     iter = 2000,
+#     cores = 4)
+# saveRDS(mod_bys_accuracy_number_grade6, file = "~/code_seyma/WMDevelopmentProject/mod_bys_accuracy_number_grade6.rds")
+```
+```{r}
+mod_bys_accuracy_number_grade6 <- readRDS(file = "~/code_seyma/WMDevelopmentProject/models/mod_bys_accuracy_number_grade6.rds")
+summary(mod_bys_accuracy_number_grade6)
+```
+
+
+## Grade 7 
+```{r include=FALSE}
+# Long format
+
+train_logs_66_mdr_half_grade7_long <- train_logs_66_mdr_half_grade7 %>%
+  pivot_longer(cols = starts_with("position_"), names_to = "position", values_to = "accuracy") %>%
+  filter(!is.na(accuracy)) %>%
+  mutate(position_continuous = as.numeric(case_when(
+    position == "position_1" ~ "1",
+    position == "position_2" ~ "2",
+    position == "position_3" ~ "3",
+    position == "position_4" ~ "4",
+    position == "position_5" ~ "5",
+    position == "position_6" ~ "6",
+    position == "position_7" ~ "7",
+    position == "position_8" ~ "8",
+    TRUE ~ NA_character_
+  ))) %>%
+  inner_join(items_66_temp, by = c("set_size", "item_id", "position_continuous")) %>%
+  mutate(last_item = set_size == position_continuous) %>%
+  mutate(last_second_item = (set_size-1) == position_continuous) %>%
+  mutate(position_rate = round(position_continuous / set_size,2))
+```
+
+
+```{r}
+# priors <- c(
+#   set_prior("normal(0, 1)", class = "Intercept"),
+#   set_prior("normal(0, 1)", class = "b", coef = "difficulty"),
+#   set_prior("normal(0, 1.5)", class = "b", coef = "position_rate"),
+#   set_prior("normal(0, 1)", class = "b", coef = "set_size"),
+#   set_prior("normal(0, 1)", class = "b", coef = "repetitionTRUE"),
+#   set_prior("normal(0, 1)", class = "b", coef = "duplicateTRUE"),
+#   set_prior("normal(0, 1)", class = "b", coef = "last_itemTRUE"),
+#   set_prior("normal(0, 1)", class = "b", coef = "last_second_itemTRUE"),
+#   set_prior("normal(0, 2)", class = "sd")
+# )
+# 
+# mod_bys_accuracy_number_grade7 <- brm(
+#     accuracy ~ (1 | user_id) + (1 | item_id) + difficulty + position_rate + set_size + repetition + duplicate+ last_item + last_second_item,
+#     data = train_logs_66_mdr_half_grade7_long,
+#     family = bernoulli(),
+#     prior = priors,
+#     warmup = 500,
+#     iter = 2000,
+#     cores = 4)
+# saveRDS(mod_bys_accuracy_number_grade7, file = "~/code_seyma/WMDevelopmentProject/mod_bys_accuracy_number_grade7.rds")
+```
+```{r}
+mod_bys_accuracy_number_grade7<- readRDS(file = "~/code_seyma/WMDevelopmentProject/models/mod_bys_accuracy_number_grade7.rds")
+summary(mod_bys_accuracy_number_grade7)
+```
+
+## Plot
+### Primacy
+
+```{r}
+grade_coefficients_number <- data.frame(
+  grade = c(3, 4, 5, 6, 7),
+  estimate = c(
+    fixef(mod_bys_accuracy_number_grade3)["position_rate", "Estimate"],
+    fixef(mod_bys_accuracy_number_grade4)["position_rate", "Estimate"],
+    fixef(mod_bys_accuracy_number_grade5)["position_rate", "Estimate"],
+    fixef(mod_bys_accuracy_number_grade6)["position_rate", "Estimate"],
+    fixef(mod_bys_accuracy_number_grade7)["position_rate", "Estimate"]
+  ),
+  Q2.5 = c(
+    fixef(mod_bys_accuracy_number_grade3)["position_rate", "Q2.5"],
+    fixef(mod_bys_accuracy_number_grade4)["position_rate", "Q2.5"],
+    fixef(mod_bys_accuracy_number_grade5)["position_rate", "Q2.5"],
+    fixef(mod_bys_accuracy_number_grade6)["position_rate", "Q2.5"],
+    fixef(mod_bys_accuracy_number_grade7)["position_rate", "Q2.5"]
+  ),
+    Q97.5 = c(
+    fixef(mod_bys_accuracy_number_grade3)["position_rate", "Q97.5"],
+    fixef(mod_bys_accuracy_number_grade4)["position_rate", "Q97.5"],
+    fixef(mod_bys_accuracy_number_grade5)["position_rate", "Q97.5"],
+    fixef(mod_bys_accuracy_number_grade6)["position_rate", "Q97.5"],
+    fixef(mod_bys_accuracy_number_grade7)["position_rate", "Q97.5"]
+  )
+)
+
+grade_coefficients_number_plot <- grade_coefficients_number %>%
+  ggplot(aes(x = factor(grade), y = estimate)) +
+  geom_point() +
+  geom_errorbar(aes(ymin = Q2.5, ymax = Q97.5), width = 0.2) +
+  labs(
+    title = "Effect of position_rate across Grades\n(Number Game)",
+    x = "Grade",
+    y = "Posterior Mean with 95% CI"
+  ) +
+  theme_minimal()
+
+```
+### Recency
+
+```{r include=FALSE}
+grade_coefficients_recency_number <- data.frame(
+  grade = c(3, 4, 5, 6, 7),
+  estimate = c(
+    fixef(mod_bys_accuracy_number_grade3)["last_itemTRUE", "Estimate"],
+    fixef(mod_bys_accuracy_number_grade4)["last_itemTRUE", "Estimate"],
+    fixef(mod_bys_accuracy_number_grade5)["last_itemTRUE", "Estimate"],
+    fixef(mod_bys_accuracy_number_grade6)["last_itemTRUE", "Estimate"],
+    fixef(mod_bys_accuracy_number_grade7)["last_itemTRUE", "Estimate"]
+  ),
+  Q2.5 = c(
+    fixef(mod_bys_accuracy_number_grade3)["last_itemTRUE", "Q2.5"],
+    fixef(mod_bys_accuracy_number_grade4)["last_itemTRUE", "Q2.5"],
+    fixef(mod_bys_accuracy_number_grade5)["last_itemTRUE", "Q2.5"],
+    fixef(mod_bys_accuracy_number_grade6)["last_itemTRUE", "Q2.5"],
+    fixef(mod_bys_accuracy_number_grade7)["last_itemTRUE", "Q2.5"]
+  ),
+    Q97.5 = c(
+    fixef(mod_bys_accuracy_number_grade3)["last_itemTRUE", "Q97.5"],
+    fixef(mod_bys_accuracy_number_grade4)["last_itemTRUE", "Q97.5"],
+    fixef(mod_bys_accuracy_number_grade5)["last_itemTRUE", "Q97.5"],
+    fixef(mod_bys_accuracy_number_grade6)["last_itemTRUE", "Q97.5"],
+    fixef(mod_bys_accuracy_number_grade7)["last_itemTRUE", "Q97.5"]
+  )
+)
+
+grade_coefficients_recency2_number <- data.frame(
+  grade = c(3, 4, 5, 6, 7),
+  estimate = c(
+    fixef(mod_bys_accuracy_number_grade3)["last_second_itemTRUE", "Estimate"],
+    fixef(mod_bys_accuracy_number_grade4)["last_second_itemTRUE", "Estimate"],
+    fixef(mod_bys_accuracy_number_grade5)["last_second_itemTRUE", "Estimate"],
+    fixef(mod_bys_accuracy_number_grade6)["last_second_itemTRUE", "Estimate"],
+    fixef(mod_bys_accuracy_number_grade7)["last_second_itemTRUE", "Estimate"]
+  ),
+  Q2.5 = c(
+    fixef(mod_bys_accuracy_number_grade3)["last_second_itemTRUE", "Q2.5"],
+    fixef(mod_bys_accuracy_number_grade4)["last_second_itemTRUE", "Q2.5"],
+    fixef(mod_bys_accuracy_number_grade5)["last_second_itemTRUE", "Q2.5"],
+    fixef(mod_bys_accuracy_number_grade6)["last_second_itemTRUE", "Q2.5"],
+    fixef(mod_bys_accuracy_number_grade7)["last_second_itemTRUE", "Q2.5"]
+  ),
+    Q97.5 = c(
+    fixef(mod_bys_accuracy_number_grade3)["last_second_itemTRUE", "Q97.5"],
+    fixef(mod_bys_accuracy_number_grade4)["last_second_itemTRUE", "Q97.5"],
+    fixef(mod_bys_accuracy_number_grade5)["last_second_itemTRUE", "Q97.5"],
+    fixef(mod_bys_accuracy_number_grade6)["last_second_itemTRUE", "Q97.5"],
+    fixef(mod_bys_accuracy_number_grade7)["last_second_itemTRUE", "Q97.5"]
+  )
+)
+
+grade_coefficients_recency_number_plot <- grade_coefficients_recency_number %>%
+  ggplot(aes(x = factor(grade), y = estimate)) +
+  geom_point() +
+  geom_errorbar(aes(ymin = Q2.5, ymax = Q97.5), width = 0.2) +
+  labs(
+    title = "Effect of last item across Grades\n(Number Game)",
+    x = "Grade",
+    y = "Posterior Mean with 95% CI"
+  ) +
+  theme_minimal()
+
+grade_coefficients_recency2_number_plot <- grade_coefficients_recency2_number %>%
+  ggplot(aes(x = factor(grade), y = estimate)) +
+  geom_point() +
+  geom_errorbar(aes(ymin = Q2.5, ymax = Q97.5), width = 0.2) +
+  labs(
+    title = "Effect of last second item across Grades\n(Number Game)",
+    x = "Grade",
+    y = "Posterior Mean with 95% CI"
+  ) +
+  theme_minimal()
+```
+```{r}
+grade_coefficients_recency_number$type <- "Last"
+grade_coefficients_recency2_number$type <- "Second Last"
+
+grade_coefficients_combined_recency <- bind_rows(
+  grade_coefficients_recency_number,
+  grade_coefficients_recency2_number
+)
+
+# Plot
+ggplot(grade_coefficients_combined_recency,
+       aes(x = factor(grade), y = estimate, color = type)) +
+  geom_point(position = position_dodge(width = 0.3), size = 2) +
+  geom_errorbar(aes(ymin = Q2.5, ymax = Q97.5),
+                position = position_dodge(width = 0.3), width = 0.2) +
+  labs(
+    title = "Effect of Recency Across Grades\n(Number Game)",
+    x = "Grade",
+    y = "Posterior Mean with 95% CI",
+    color = "Effect"
+  ) +
+  theme_minimal() +
+  theme(
+    legend.position = "top"
+  )
+```
+```{r}
+grade_coefficients_recency_number_plot + grade_coefficients_number_plot
+```
+
+### Set Size
+
+Same process for other predictors. 
+
+```{r include=FALSE}
+grade_coefficients_setsize_number <- data.frame(
+  grade = c(3, 4, 5, 6, 7),
+  estimate = c(
+    fixef(mod_bys_accuracy_number_grade3)["set_size", "Estimate"],
+    fixef(mod_bys_accuracy_number_grade4)["set_size", "Estimate"],
+    fixef(mod_bys_accuracy_number_grade5)["set_size", "Estimate"],
+    fixef(mod_bys_accuracy_number_grade6)["set_size", "Estimate"],
+    fixef(mod_bys_accuracy_number_grade7)["set_size", "Estimate"]
+  ),
+  Q2.5 = c(
+    fixef(mod_bys_accuracy_number_grade3)["set_size", "Q2.5"],
+    fixef(mod_bys_accuracy_number_grade4)["set_size", "Q2.5"],
+    fixef(mod_bys_accuracy_number_grade5)["set_size", "Q2.5"],
+    fixef(mod_bys_accuracy_number_grade6)["set_size", "Q2.5"],
+    fixef(mod_bys_accuracy_number_grade7)["set_size", "Q2.5"]
+  ),
+    Q97.5 = c(
+    fixef(mod_bys_accuracy_number_grade3)["set_size", "Q97.5"],
+    fixef(mod_bys_accuracy_number_grade4)["set_size", "Q97.5"],
+    fixef(mod_bys_accuracy_number_grade5)["set_size", "Q97.5"],
+    fixef(mod_bys_accuracy_number_grade6)["set_size", "Q97.5"],
+    fixef(mod_bys_accuracy_number_grade7)["set_size", "Q97.5"]
+  )
+)
+
+
+grade_coefficients_setsize_number_plot <- grade_coefficients_setsize_number %>%
+  ggplot(aes(x = factor(grade), y = estimate)) +
+  geom_point() +
+  geom_errorbar(aes(ymin = Q2.5, ymax = Q97.5), width = 0.2) +
+  labs(
+    title = "Effect of set size across Grades\n(Number Game)",
+    x = "Grade",
+    y = "Posterior Mean with 95% CI"
+  ) +
+  theme_minimal()
+
+```
+### Repetition and duplicate
+
+```{r include=FALSE}
+grade_coefficients_repetition_number <- data.frame(
+  grade = c(3, 4, 5, 6, 7),
+  estimate = c(
+    fixef(mod_bys_accuracy_number_grade3)["repetitionTRUE", "Estimate"],
+    fixef(mod_bys_accuracy_number_grade4)["repetitionTRUE", "Estimate"],
+    fixef(mod_bys_accuracy_number_grade5)["repetitionTRUE", "Estimate"],
+    fixef(mod_bys_accuracy_number_grade6)["repetitionTRUE", "Estimate"],
+    fixef(mod_bys_accuracy_number_grade7)["repetitionTRUE", "Estimate"]
+  ),
+  Q2.5 = c(
+    fixef(mod_bys_accuracy_number_grade3)["repetitionTRUE", "Q2.5"],
+    fixef(mod_bys_accuracy_number_grade4)["repetitionTRUE", "Q2.5"],
+    fixef(mod_bys_accuracy_number_grade5)["repetitionTRUE", "Q2.5"],
+    fixef(mod_bys_accuracy_number_grade6)["repetitionTRUE", "Q2.5"],
+    fixef(mod_bys_accuracy_number_grade7)["repetitionTRUE", "Q2.5"]
+  ),
+    Q97.5 = c(
+    fixef(mod_bys_accuracy_number_grade3)["repetitionTRUE", "Q97.5"],
+    fixef(mod_bys_accuracy_number_grade4)["repetitionTRUE", "Q97.5"],
+    fixef(mod_bys_accuracy_number_grade5)["repetitionTRUE", "Q97.5"],
+    fixef(mod_bys_accuracy_number_grade6)["repetitionTRUE", "Q97.5"],
+    fixef(mod_bys_accuracy_number_grade7)["repetitionTRUE", "Q97.5"]
+  )
+)
+
+
+grade_coefficients_repetition_number_plot <- grade_coefficients_repetition_number %>%
+  ggplot(aes(x = factor(grade), y = estimate)) +
+  geom_point() +
+  geom_errorbar(aes(ymin = Q2.5, ymax = Q97.5), width = 0.2) +
+  labs(
+    title = "Effect of repetition across Grades\n(Number Game)",
+    x = "Grade",
+    y = "Posterior Mean with 95% CI"
+  ) +
+  theme_minimal()
+
+```
+
+
+```{r include=FALSE}
+grade_coefficients_duplicate_number <- data.frame(
+  grade = c(3, 4, 5, 6, 7),
+  estimate = c(
+    fixef(mod_bys_accuracy_number_grade3)["duplicateTRUE", "Estimate"],
+    fixef(mod_bys_accuracy_number_grade4)["duplicateTRUE", "Estimate"],
+    fixef(mod_bys_accuracy_number_grade5)["duplicateTRUE", "Estimate"],
+    fixef(mod_bys_accuracy_number_grade6)["duplicateTRUE", "Estimate"],
+    fixef(mod_bys_accuracy_number_grade7)["duplicateTRUE", "Estimate"]
+  ),
+  Q2.5 = c(
+    fixef(mod_bys_accuracy_number_grade3)["duplicateTRUE", "Q2.5"],
+    fixef(mod_bys_accuracy_number_grade4)["duplicateTRUE", "Q2.5"],
+    fixef(mod_bys_accuracy_number_grade5)["duplicateTRUE", "Q2.5"],
+    fixef(mod_bys_accuracy_number_grade6)["duplicateTRUE", "Q2.5"],
+    fixef(mod_bys_accuracy_number_grade7)["duplicateTRUE", "Q2.5"]
+  ),
+    Q97.5 = c(
+    fixef(mod_bys_accuracy_number_grade3)["duplicateTRUE", "Q97.5"],
+    fixef(mod_bys_accuracy_number_grade4)["duplicateTRUE", "Q97.5"],
+    fixef(mod_bys_accuracy_number_grade5)["duplicateTRUE", "Q97.5"],
+    fixef(mod_bys_accuracy_number_grade6)["duplicateTRUE", "Q97.5"],
+    fixef(mod_bys_accuracy_number_grade7)["duplicateTRUE", "Q97.5"]
+  )
+)
+
+
+grade_coefficients_duplicate_number_plot <- grade_coefficients_duplicate_number %>%
+  ggplot(aes(x = factor(grade), y = estimate)) +
+  geom_point() +
+  geom_errorbar(aes(ymin = Q2.5, ymax = Q97.5), width = 0.2) +
+  labs(
+    title = "Effect of duplicate across Grades\n(Number Game)",
+    x = "Grade",
+    y = "Posterior Mean with 95% CI"
+  ) +
+  theme_minimal()
+
+```
+
+```{r}
+grade_coefficients_setsize_number_plot + grade_coefficients_duplicate_number_plot / grade_coefficients_repetition_number_plot
+```
+
+## Similar Ability Student with different grades 
+
+In the frequentist ability we applied lenient and strict data selections with different results. I will start with strict data selection and compare it with the general results. 
+
+```{r}
+train_logs_66_mdr_half_last_ability <- train_logs_66_mdr_half %>%
+  group_by(user_id, grade) %>%
+  filter(created == max(created)) %>%
+  ungroup() 
+
+similar_students_strict <- train_logs_66_mdr_half_last_ability %>%
+  filter(grade %in% c(4, 6),
+         new_user_domain_rating > 1,
+         new_user_domain_rating < 2) 
+similar_students_strict %>% count(grade)
+```
+
+```{r}
+similar_students_strict <- similar_students_strict %>%
+  mutate(user_grade = paste0(user_id, "_", grade)) %>%
+  pull(user_grade)
+
+train_logs_66_mdr_half_grade46_similarAbility_strict <- train_logs_66_mdr_half %>% 
+  mutate(user_grade_logs = paste0(user_id, "_", grade)) %>% 
+  filter(user_grade_logs %in% similar_students_strict) 
+
+train_logs_66_mdr_half_grade4_similarAbility_strict <- train_logs_66_mdr_half_grade46_similarAbility_strict %>% 
+  filter(grade == 4)
+
+train_logs_66_mdr_half_grade6_similarAbility_strict <- train_logs_66_mdr_half_grade46_similarAbility_strict %>% 
+  filter(grade == 6)
+```
+
+
+```{r}
+capacity4 <- train_logs_66_mdr_half_grade46_similarAbility_strict %>% 
+  filter(grade == 4) %>% 
+  group_by(user_id) %>% 
+  summarise(capacity = max(set_size))
+capacity6 <- train_logs_66_mdr_half_grade46_similarAbility_strict %>% 
+  filter(grade == 6) %>% 
+  group_by(user_id) %>% 
+  summarise(capacity = max(set_size))
+
+prop.table(table(capacity4$capacity)) 
+prop.table(table(capacity6$capacity)) 
+```
+In the strict selection, max set size of users are similar. 
+
+
+#### Grade 4
+
+```{r include=FALSE}
+train_logs_66_mdr_half_grade4_similarAbility_strict_long <- train_logs_66_mdr_half_grade4_similarAbility_strict %>%
+  pivot_longer(cols = starts_with("position_"), names_to = "position", values_to = "accuracy") %>%
+  filter(!is.na(accuracy)) %>%
+  mutate(position_continuous = as.numeric(case_when(
+    position == "position_1" ~ "1",
+    position == "position_2" ~ "2",
+    position == "position_3" ~ "3",
+    position == "position_4" ~ "4",
+    position == "position_5" ~ "5",
+    position == "position_6" ~ "6",
+    position == "position_7" ~ "7",
+    position == "position_8" ~ "8",
+    TRUE ~ NA_character_
+  ))) %>%
+  inner_join(items_66_temp, by = c("set_size", "item_id", "position_continuous")) %>%
+  mutate(last_item = set_size == position_continuous) %>%
+  mutate(last_second_item = (set_size-1) == position_continuous) %>%
+  mutate(position_rate = round(position_continuous / set_size,2))
+```
+
+```{r}
+# priors <- c(
+#   set_prior("normal(0, 1)", class = "Intercept"),
+#   set_prior("normal(0, 1)", class = "b", coef = "difficulty"),
+#   set_prior("normal(0, 1.5)", class = "b", coef = "position_rate"),
+#   set_prior("normal(0, 1)", class = "b", coef = "set_size"),
+#   set_prior("normal(0, 1)", class = "b", coef = "repetitionTRUE"),
+#   set_prior("normal(0, 1)", class = "b", coef = "duplicateTRUE"),
+#   set_prior("normal(0, 1)", class = "b", coef = "last_itemTRUE"),
+#   set_prior("normal(0, 1)", class = "b", coef = "last_second_itemTRUE"),
+#   set_prior("normal(0, 2)", class = "sd")
+# )
+
+# mod_accuracy_number_grade4_similarAbility_strict_bys <- brm(
+#     accuracy ~ (1 | user_id) + (1 | item_id) + difficulty + position_rate + set_size + repetition + duplicate+ last_item + last_second_item,
+#     data = train_logs_66_mdr_half_grade4_similarAbility_strict_long,
+#     family = bernoulli(),
+#     prior = priors,
+#     warmup = 500,
+#     iter = 2000,
+#     cores = 4)
+# saveRDS(mod_accuracy_number_grade4_similarAbility_strict_bys, file = "~/code_seyma/WMDevelopmentProject/mod_accuracy_number_grade4_similarAbility_strict_bys.rds")
+```
+
+```{r}
+mod_accuracy_number_grade4_similarAbility_strict_bys <- readRDS(file = "~/code_seyma/WMDevelopmentProject/models/mod_accuracy_number_grade4_similarAbility_strict_bys.rds")
+summary(mod_accuracy_number_grade4_similarAbility_strict_bys)
+```
+#### Grade 6
+
+```{r include=FALSE}
+train_logs_66_mdr_half_grade6_similarAbility_strict_long <- train_logs_66_mdr_half_grade6_similarAbility_strict %>%
+  pivot_longer(cols = starts_with("position_"), names_to = "position", values_to = "accuracy") %>%
+  filter(!is.na(accuracy)) %>%
+  mutate(position_continuous = as.numeric(case_when(
+    position == "position_1" ~ "1",
+    position == "position_2" ~ "2",
+    position == "position_3" ~ "3",
+    position == "position_4" ~ "4",
+    position == "position_5" ~ "5",
+    position == "position_6" ~ "6",
+    position == "position_7" ~ "7",
+    position == "position_8" ~ "8",
+    TRUE ~ NA_character_
+  ))) %>%
+  inner_join(items_66_temp, by = c("set_size", "item_id", "position_continuous")) %>%
+  mutate(last_item = set_size == position_continuous) %>%
+  mutate(last_second_item = (set_size-1) == position_continuous) %>%
+  mutate(position_rate = round(position_continuous / set_size,2))
+```
+
+```{r}
+# priors <- c(
+#   set_prior("normal(0, 1)", class = "Intercept"),
+#   set_prior("normal(0, 1)", class = "b", coef = "difficulty"),
+#   set_prior("normal(0, 1.5)", class = "b", coef = "position_rate"),
+#   set_prior("normal(0, 1)", class = "b", coef = "set_size"),
+#   set_prior("normal(0, 1)", class = "b", coef = "repetitionTRUE"),
+#   set_prior("normal(0, 1)", class = "b", coef = "duplicateTRUE"),
+#   set_prior("normal(0, 1)", class = "b", coef = "last_itemTRUE"),
+#   set_prior("normal(0, 1)", class = "b", coef = "last_second_itemTRUE"),
+#   set_prior("normal(0, 2)", class = "sd")
+# )
+
+# mod_accuracy_number_grade6_similarAbility_strict_bys <- brm(
+#     accuracy ~ (1 | user_id) + (1 | item_id) + difficulty + position_rate + set_size + repetition + duplicate+ last_item + last_second_item,
+#     data = train_logs_66_mdr_half_grade6_similarAbility_strict_long,
+#     family = bernoulli(),
+#     prior = priors,
+#     warmup = 500,
+#     iter = 2000,
+#     cores = 4)
+# saveRDS(mod_accuracy_number_grade6_similarAbility_strict_bys, file = "~/code_seyma/WMDevelopmentProject/models/mod_accuracy_number_grade6_similarAbility_strict_bys.rds")
+```
+
+```{r}
+mod_accuracy_number_grade6_similarAbility_strict_bys <- readRDS(file = "~/code_seyma/WMDevelopmentProject/models/mod_accuracy_number_grade6_similarAbility_strict_bys.rds")
+mod_accuracy_number_grade6_similarAbility_strict_bys
+```
+
+### Plots 
+
+```{r include=FALSE}
+grade46_strict_primacy_number <- data.frame(
+  grade = c(4, 6),
+  estimate = c(
+    fixef(mod_accuracy_number_grade4_similarAbility_strict_bys)["position_rate", "Estimate"],
+    fixef(mod_accuracy_number_grade6_similarAbility_strict_bys)["position_rate", "Estimate"]
+  ),
+  Q2.5 = c(
+    fixef(mod_accuracy_number_grade4_similarAbility_strict_bys)["position_rate", "Q2.5"],
+    fixef(mod_accuracy_number_grade6_similarAbility_strict_bys)["position_rate", "Q2.5"]
+  ),
+    Q97.5 = c(
+    fixef(mod_accuracy_number_grade4_similarAbility_strict_bys)["position_rate", "Q97.5"],
+    fixef(mod_accuracy_number_grade6_similarAbility_strict_bys)["position_rate", "Q97.5"]
+  )
+)
+
+grade46_strict_recency_number <- data.frame(
+  grade = c(4, 6),
+  estimate = c(
+    fixef(mod_accuracy_number_grade4_similarAbility_strict_bys)["last_itemTRUE", "Estimate"],
+    fixef(mod_accuracy_number_grade6_similarAbility_strict_bys)["last_itemTRUE", "Estimate"]
+  ),
+  Q2.5 = c(
+    fixef(mod_accuracy_number_grade4_similarAbility_strict_bys)["last_itemTRUE", "Q2.5"],
+    fixef(mod_accuracy_number_grade6_similarAbility_strict_bys)["last_itemTRUE", "Q2.5"]
+  ),
+    Q97.5 = c(
+    fixef(mod_accuracy_number_grade4_similarAbility_strict_bys)["last_itemTRUE", "Q97.5"],
+    fixef(mod_accuracy_number_grade6_similarAbility_strict_bys)["last_itemTRUE", "Q97.5"]
+  )
+)
+```
+
+```{r include=FALSE}
+grade46_strict_primacy_number_plot <- grade46_strict_primacy_number %>%
+  ggplot(aes(x = factor(grade), y = estimate)) +
+  geom_point() +
+  geom_errorbar(aes(ymin = Q2.5, ymax = Q97.5), width = 0.2) +
+  labs(
+    title = "position_rate \n(Number Game)(Strict)",
+    x = "Grade",
+    y = "Estimate & 95% CI"
+  ) +
+  theme_minimal()
+
+grade46_strict_recency_number_plot <- grade46_strict_recency_number %>%
+  ggplot(aes(x = factor(grade), y = estimate)) +
+  geom_point() +
+  geom_errorbar(aes(ymin = Q2.5, ymax = Q97.5), width = 0.2) +
+  labs(
+    title = "last item \n(Number Game)(Strict)",
+    x = "Grade",
+    y = "Estimate & 95% CI"
+  ) +
+  theme_minimal()
+```
+
+```{r include=FALSE}
+grade46_primacy_number_all <- data.frame(
+  grade = c(4, 6),
+  estimate = c(
+    fixef(mod_bys_accuracy_number_grade4)["position_rate", "Estimate"],
+    fixef(mod_bys_accuracy_number_grade6)["position_rate", "Estimate"]
+  ),
+  Q2.5 = c(
+    fixef(mod_bys_accuracy_number_grade4)["position_rate", "Q2.5"],
+    fixef(mod_bys_accuracy_number_grade6)["position_rate", "Q2.5"]
+  ),
+    Q97.5 = c(
+    fixef(mod_bys_accuracy_number_grade4)["position_rate", "Q97.5"],
+    fixef(mod_bys_accuracy_number_grade6)["position_rate", "Q97.5"]
+  )
+)
+
+grade46_recncy_number_all <- data.frame(
+  grade = c(4, 6),
+  estimate = c(
+    fixef(mod_bys_accuracy_number_grade4)["last_itemTRUE", "Estimate"],
+    fixef(mod_bys_accuracy_number_grade6)["last_itemTRUE", "Estimate"]
+  ),
+  Q2.5 = c(
+    fixef(mod_bys_accuracy_number_grade4)["last_itemTRUE", "Q2.5"],
+    fixef(mod_bys_accuracy_number_grade6)["last_itemTRUE", "Q2.5"]
+  ),
+    Q97.5 = c(
+    fixef(mod_bys_accuracy_number_grade4)["last_itemTRUE", "Q97.5"],
+    fixef(mod_bys_accuracy_number_grade6)["last_itemTRUE", "Q97.5"]
+  )
+)
+
+
+grade46_primacy_number_all_plot <- grade46_primacy_number_all %>%
+  ggplot(aes(x = factor(grade), y = estimate)) +
+  geom_point() +
+  geom_errorbar(aes(ymin = Q2.5, ymax = Q97.5), width = 0.2) +
+  labs(
+    title = "position_rate \n(Number Game)(All)",
+    x = "Grade",
+    y = "Estimate & 95% CI"
+  ) +
+  theme_minimal()
+
+grade46_recency_number_all_plot <- grade46_recncy_number_all %>%
+  ggplot(aes(x = factor(grade), y = estimate)) +
+  geom_point() +
+  geom_errorbar(aes(ymin = Q2.5, ymax = Q97.5), width = 0.2) +
+  labs(
+    title = "last item \n(Number Game)(All)",
+    x = "Grade",
+    y = "Estimate & 95% CI"
+  ) +
+  theme_minimal()
+
+```
+
+```{r}
+capacity4number <- train_logs_66_mdr_half_grade46_similarAbility_strict %>% 
+  filter(grade == 4) %>% 
+  group_by(user_id) %>% 
+  summarise(capacity = max(set_size))
+capacity6number <- train_logs_66_mdr_half_grade46_similarAbility_strict %>% 
+  filter(grade == 6) %>% 
+  group_by(user_id) %>% 
+  summarise(capacity = max(set_size))
+
+prop.table(table(capacity4number$capacity)) 
+prop.table(table(capacity6number$capacity)) 
+
+#Set size 7 and 8 are the most frequent ones for both grades. 
+
+tbl4number <- prop.table(table(capacity4number$capacity)) * 100
+percent_grade4number <- paste(names(tbl4number), "=", round(tbl4number, 2), "%", collapse = ", ")
+
+
+tbl6number <- prop.table(table(capacity6number$capacity)) * 100
+percent_grade6number <- paste(names(tbl6number), "=", round(tbl6number, 2), "%", collapse = ", ")
+```
+
+```{r}
+capacity4numberAll <- train_logs_66_mdr_half_grade4 %>% 
+  group_by(user_id) %>% 
+  summarise(capacity = max(set_size))
+capacity6numberAll <- train_logs_66_mdr_half_grade6 %>% 
+  group_by(user_id) %>% 
+  summarise(capacity = max(set_size))
+
+prop.table(table(capacity4numberAll$capacity)) 
+prop.table(table(capacity6numberAll$capacity)) 
+
+tbl4numberALL <- prop.table(table(capacity4numberAll$capacity)) * 100
+percent_grade4ALLnumber <- paste(names(tbl4numberALL), "=", round(tbl4numberALL, 2), "%", collapse = ", ")
+
+
+tbl6numberALL <- prop.table(table(capacity6numberAll$capacity)) * 100
+percent_grade6ALLnumber <- paste(names(tbl6numberALL), "=", round(tbl6numberALL, 2), "%", collapse = ", ")
+```
+
+```{r fig.height=6, fig.width=8}
+(grade46_strict_primacy_number_plot + grade46_strict_recency_number_plot)/ (grade46_primacy_number_all_plot + grade46_recency_number_all_plot) +
+  plot_annotation(title =  'Bayesian: all students vs  1<student rating<2',
+    caption = paste("Strict Students Max Setsize Percentages:\nGrade 4:", percent_grade4number, "\nGrade 6:", percent_grade6ALLnumber, "\nAll data Max Setsize:\nGrade 4:",percent_grade4ALLnumber,  "\nGrade 6:", percent_grade6ALLnumber )
+  )
+```
+
+## SetSize Interaction
+
+Go to beginning of the number game section for the data for grade levels. 
+
+- The grade 3 model does not converge. 
+
+#### Grade 4
+
+```{r include=FALSE}
+# Long format
+
+# train_logs_66_mdr_half_grade4_long <- train_logs_66_mdr_half_grade4 %>%
+#   pivot_longer(cols = starts_with("position_"), names_to = "position", values_to = "accuracy") %>%
+#   filter(!is.na(accuracy)) %>%
+#   mutate(position_continuous = as.numeric(case_when(
+#     position == "position_1" ~ "1",
+#     position == "position_2" ~ "2",
+#     position == "position_3" ~ "3",
+#     position == "position_4" ~ "4",
+#     position == "position_5" ~ "5",
+#     position == "position_6" ~ "6",
+#     position == "position_7" ~ "7",
+#     position == "position_8" ~ "8",
+#     TRUE ~ NA_character_
+#   ))) %>%
+#   inner_join(items_66_temp, by = c("set_size", "item_id", "position_continuous")) %>%
+#   mutate(last_item = set_size == position_continuous) %>%
+#   mutate(last_second_item = (set_size-1) == position_continuous) %>%
+#   mutate(position_rate = round(position_continuous / set_size,2))
+
+# Priors 
+
+# priors <- c(
+#   set_prior("normal(0, 1)", class = "Intercept"),
+#   set_prior("normal(0, 1)", class = "b", coef = "difficulty"),
+#   set_prior("normal(0, 1.5)", class = "b", coef = "position_rate"),
+#   set_prior("normal(0, 1)", class = "b", coef = "set_size"),
+#   set_prior("normal(0, 1)", class = "b", coef = "repetitionTRUE"),
+#   set_prior("normal(0, 1)", class = "b", coef = "duplicateTRUE"),
+#   set_prior("normal(0, 1)", class = "b", coef = "last_itemTRUE"),
+#   set_prior("normal(0, 1)", class = "b", coef = "last_second_itemTRUE"),
+#   set_prior("normal(0, 2)", class = "sd")
+# )
+```
+
+```{r}
+# mod1_bys_accuracy_number_grade4 <- brm(
+#     accuracy ~ (1 | user_id) + (1 | item_id) + difficulty + position_rate * set_size + repetition + duplicate+ last_item * set_size + last_second_item,
+#     data = train_logs_66_mdr_half_grade4_long,
+#     family = bernoulli(),
+#     prior = priors,
+#     warmup = 500,
+#     iter = 2000,
+#     cores = 4)
+# saveRDS(mod1_bys_accuracy_number_grade4, file = "~/code_seyma/WMDevelopmentProject/mod1_bys_accuracy_number_grade4.rds")
+```
+```{r}
+mod1_bys_accuracy_number_grade4 <- readRDS(file = "~/code_seyma/WMDevelopmentProject/models/mod1_bys_accuracy_number_grade4.rds")
+summary(mod1_bys_accuracy_number_grade4)
+```
+
+#### Grade 5
+
+```{r include=FALSE}
+# Long format
+
+# train_logs_66_mdr_half_grade5_long <- train_logs_66_mdr_half_grade5 %>%
+#   pivot_longer(cols = starts_with("position_"), names_to = "position", values_to = "accuracy") %>%
+#   filter(!is.na(accuracy)) %>%
+#   mutate(position_continuous = as.numeric(case_when(
+#     position == "position_1" ~ "1",
+#     position == "position_2" ~ "2",
+#     position == "position_3" ~ "3",
+#     position == "position_4" ~ "4",
+#     position == "position_5" ~ "5",
+#     position == "position_6" ~ "6",
+#     position == "position_7" ~ "7",
+#     position == "position_8" ~ "8",
+#     TRUE ~ NA_character_
+#   ))) %>%
+#   inner_join(items_66_temp, by = c("set_size", "item_id", "position_continuous")) %>%
+#   mutate(last_item = set_size == position_continuous) %>%
+#   mutate(last_second_item = (set_size-1) == position_continuous) %>%
+#   mutate(position_rate = round(position_continuous / set_size,2))
+
+# Priors 
+
+# priors <- c(
+#   set_prior("normal(0, 1)", class = "Intercept"),
+#   set_prior("normal(0, 1)", class = "b", coef = "difficulty"),
+#   set_prior("normal(0, 1.5)", class = "b", coef = "position_rate"),
+#   set_prior("normal(0, 1)", class = "b", coef = "set_size"),
+#   set_prior("normal(0, 1)", class = "b", coef = "repetitionTRUE"),
+#   set_prior("normal(0, 1)", class = "b", coef = "duplicateTRUE"),
+#   set_prior("normal(0, 1)", class = "b", coef = "last_itemTRUE"),
+#   set_prior("normal(0, 1)", class = "b", coef = "last_second_itemTRUE"),
+#   set_prior("normal(0, 2)", class = "sd")
+# )
+```
+
+```{r}
+# mod1_bys_accuracy_number_grade5 <- brm(
+#     accuracy ~ (1 | user_id) + (1 | item_id) + difficulty + position_rate * set_size + repetition + duplicate+ last_item * set_size + last_second_item,
+#     data = train_logs_66_mdr_half_grade5_long,
+#     family = bernoulli(),
+#     prior = priors,
+#     warmup = 500,
+#     iter = 2000,
+#     cores = 4)
+# saveRDS(mod1_bys_accuracy_number_grade5, file = "~/code_seyma/WMDevelopmentProject/mod1_bys_accuracy_number_grade5.rds")
+```
+```{r}
+mod1_bys_accuracy_number_grade5 <- readRDS(file = "~/code_seyma/WMDevelopmentProject/models/mod1_bys_accuracy_number_grade5.rds")
+```
+```{r}
+summary(mod1_bys_accuracy_number_grade5)
+```
+
+#### Grade 6
+
+```{r include=FALSE}
+# Long format
+
+# train_logs_66_mdr_half_grade6_long <- train_logs_66_mdr_half_grade6 %>%
+#   pivot_longer(cols = starts_with("position_"), names_to = "position", values_to = "accuracy") %>%
+#   filter(!is.na(accuracy)) %>%
+#   mutate(position_continuous = as.numeric(case_when(
+#     position == "position_1" ~ "1",
+#     position == "position_2" ~ "2",
+#     position == "position_3" ~ "3",
+#     position == "position_4" ~ "4",
+#     position == "position_5" ~ "5",
+#     position == "position_6" ~ "6",
+#     position == "position_7" ~ "7",
+#     position == "position_8" ~ "8",
+#     TRUE ~ NA_character_
+#   ))) %>%
+#   inner_join(items_66_temp, by = c("set_size", "item_id", "position_continuous")) %>%
+#   mutate(last_item = set_size == position_continuous) %>%
+#   mutate(last_second_item = (set_size-1) == position_continuous) %>%
+#   mutate(position_rate = round(position_continuous / set_size,2))
+
+# Priors 
+
+# priors <- c(
+#   set_prior("normal(0, 1)", class = "Intercept"),
+#   set_prior("normal(0, 1)", class = "b", coef = "difficulty"),
+#   set_prior("normal(0, 1.5)", class = "b", coef = "position_rate"),
+#   set_prior("normal(0, 1)", class = "b", coef = "set_size"),
+#   set_prior("normal(0, 1)", class = "b", coef = "repetitionTRUE"),
+#   set_prior("normal(0, 1)", class = "b", coef = "duplicateTRUE"),
+#   set_prior("normal(0, 1)", class = "b", coef = "last_itemTRUE"),
+#   set_prior("normal(0, 1)", class = "b", coef = "last_second_itemTRUE"),
+#   set_prior("normal(0, 2)", class = "sd")
+# )
+```
+```{r}
+# mod1_bys_accuracy_number_grade6 <- brm(
+#     accuracy ~ (1 | user_id) + (1 | item_id) + difficulty + position_rate * set_size + repetition + duplicate+ last_item * set_size + last_second_item,
+#     data = train_logs_66_mdr_half_grade6_long,
+#     family = bernoulli(),
+#     prior = priors,
+#     warmup = 500,
+#     iter = 2000,
+#     cores = 4)
+# saveRDS(mod1_bys_accuracy_number_grade6, file = "~/code_seyma/WMDevelopmentProject/mod1_bys_accuracy_number_grade6.rds")
+```
+```{r}
+mod1_bys_accuracy_number_grade6 <- readRDS(file = "~/code_seyma/WMDevelopmentProject/models/mod1_bys_accuracy_number_grade6.rds")
+summary(mod1_bys_accuracy_number_grade6)
+```
+
+#### Grade 7
+
+```{r include=FALSE}
+# Long format
+
+# train_logs_66_mdr_half_grade7_long <- train_logs_66_mdr_half_grade7 %>%
+#   pivot_longer(cols = starts_with("position_"), names_to = "position", values_to = "accuracy") %>%
+#   filter(!is.na(accuracy)) %>%
+#   mutate(position_continuous = as.numeric(case_when(
+#     position == "position_1" ~ "1",
+#     position == "position_2" ~ "2",
+#     position == "position_3" ~ "3",
+#     position == "position_4" ~ "4",
+#     position == "position_5" ~ "5",
+#     position == "position_6" ~ "6",
+#     position == "position_7" ~ "7",
+#     position == "position_8" ~ "8",
+#     TRUE ~ NA_character_
+#   ))) %>%
+#   inner_join(items_66_temp, by = c("set_size", "item_id", "position_continuous")) %>%
+#   mutate(last_item = set_size == position_continuous) %>%
+#   mutate(last_second_item = (set_size-1) == position_continuous) %>%
+#   mutate(position_rate = round(position_continuous / set_size,2))
+
+# Priors 
+
+# priors <- c(
+#   set_prior("normal(0, 1)", class = "Intercept"),
+#   set_prior("normal(0, 1)", class = "b", coef = "difficulty"),
+#   set_prior("normal(0, 1.5)", class = "b", coef = "position_rate"),
+#   set_prior("normal(0, 1)", class = "b", coef = "set_size"),
+#   set_prior("normal(0, 1)", class = "b", coef = "repetitionTRUE"),
+#   set_prior("normal(0, 1)", class = "b", coef = "duplicateTRUE"),
+#   set_prior("normal(0, 1)", class = "b", coef = "last_itemTRUE"),
+#   set_prior("normal(0, 1)", class = "b", coef = "last_second_itemTRUE"),
+#   set_prior("normal(0, 2)", class = "sd")
+# )
+```
+```{r}
+# mod1_bys_accuracy_number_grade7 <- brm(
+#     accuracy ~ (1 | user_id) + (1 | item_id) + difficulty + position_rate * set_size + repetition + duplicate+ last_item * set_size + last_second_item,
+#     data = train_logs_66_mdr_half_grade7_long,
+#     family = bernoulli(),
+#     prior = priors,
+#     warmup = 500,
+#     iter = 2000,
+#     cores = 4)
+# saveRDS(mod1_bys_accuracy_number_grade7, file = "~/code_seyma/WMDevelopmentProject/mod1_bys_accuracy_number_grade7.rds")
+```
+```{r}
+mod1_bys_accuracy_number_grade7 <- readRDS(file = "~/code_seyma/WMDevelopmentProject/models/mod1_bys_accuracy_number_grade7.rds")
+mod1_bys_accuracy_number_grade7
+```
+
+```{r include=FALSE}
+setsize_int_primacy <- data.frame(
+  grade = c(4, 5, 6, 7),
+  estimate = c(
+    fixef(mod1_bys_accuracy_number_grade4)["position_rate:set_size", "Estimate"],
+    fixef(mod1_bys_accuracy_number_grade5)["position_rate:set_size", "Estimate"],
+    fixef(mod1_bys_accuracy_number_grade6)["position_rate:set_size", "Estimate"],
+    fixef(mod1_bys_accuracy_number_grade7)["position_rate:set_size", "Estimate"]
+  ),
+  Q2.5 = c(
+    fixef(mod1_bys_accuracy_number_grade4)["position_rate:set_size", "Q2.5"],
+    fixef(mod1_bys_accuracy_number_grade5)["position_rate:set_size", "Q2.5"],
+    fixef(mod1_bys_accuracy_number_grade6)["position_rate:set_size", "Q2.5"],
+    fixef(mod1_bys_accuracy_number_grade7)["position_rate:set_size", "Q2.5"]
+  ),
+    Q97.5 = c(
+    fixef(mod1_bys_accuracy_number_grade4)["position_rate:set_size", "Q97.5"],
+    fixef(mod1_bys_accuracy_number_grade5)["position_rate:set_size", "Q97.5"],
+    fixef(mod1_bys_accuracy_number_grade6)["position_rate:set_size", "Q97.5"],
+    fixef(mod1_bys_accuracy_number_grade7)["position_rate:set_size", "Q97.5"]
+  )
+)
+```
+
+
+```{r}
+setsize_int_primacy_plot <- setsize_int_primacy %>%
+  ggplot(aes(x = factor(grade), y = estimate)) +
+  geom_point() +
+  geom_errorbar(aes(ymin = Q2.5, ymax = Q97.5), width = 0.2) +
+  labs(
+    title = "position_rate:set_size \n(Number Game)(All)",
+    x = "Grade",
+    y = "Estimate & 95% CI"
+  ) +
+  theme_minimal()
+setsize_int_primacy_plot
+```
+
+
+```{r include=FALSE}
+setsize_int_recency <- data.frame(
+  grade = c(4, 5, 6, 7),
+  estimate = c(
+    fixef(mod1_bys_accuracy_number_grade4)["set_size:last_itemTRUE", "Estimate"],
+    fixef(mod1_bys_accuracy_number_grade5)["set_size:last_itemTRUE", "Estimate"],
+    fixef(mod1_bys_accuracy_number_grade6)["set_size:last_itemTRUE", "Estimate"],
+    fixef(mod1_bys_accuracy_number_grade7)["set_size:last_itemTRUE", "Estimate"]
+  ),
+  Q2.5 = c(
+    fixef(mod1_bys_accuracy_number_grade4)["set_size:last_itemTRUE", "Q2.5"],
+    fixef(mod1_bys_accuracy_number_grade5)["set_size:last_itemTRUE", "Q2.5"],
+    fixef(mod1_bys_accuracy_number_grade6)["set_size:last_itemTRUE", "Q2.5"],
+    fixef(mod1_bys_accuracy_number_grade7)["set_size:last_itemTRUE", "Q2.5"]
+  ),
+    Q97.5 = c(
+    fixef(mod1_bys_accuracy_number_grade4)["set_size:last_itemTRUE", "Q97.5"],
+    fixef(mod1_bys_accuracy_number_grade5)["set_size:last_itemTRUE", "Q97.5"],
+    fixef(mod1_bys_accuracy_number_grade6)["set_size:last_itemTRUE", "Q97.5"],
+    fixef(mod1_bys_accuracy_number_grade7)["set_size:last_itemTRUE", "Q97.5"]
+  )
+)
+```
+
+
+```{r}
+#Plots
+
+setsize_int_recency_plot <- setsize_int_recency %>%
+  ggplot(aes(x = factor(grade), y = estimate)) +
+  geom_point() +
+  geom_errorbar(aes(ymin = Q2.5, ymax = Q97.5), width = 0.2) +
+  labs(
+    title = "set_size:last_itemTRUE \n(Number Game)(All)",
+    x = "Grade",
+    y = "Estimate & 95% CI"
+  ) +
+  theme_minimal()
+setsize_int_recency_plot
+```
+
+
+
+
+## Summary Number Game
+
+1. **Models by grade**
+    1. *Primacy* 
+        1. Position rate decrease (primact effect *increase*) from grade 3 to 7 
+    2. *Recency* 
+        1. Recent effect  *increase* with grade level 
+    3. *Set Size*
+        1. The effect between grades are *non-linear* and *varies*
+    4. *Duplicate* 
+        1. The effect do not vary and is lost for grades 6 and 7.   
+    5. *Repetition*
+        1. Wider uncertainty for later grades so no changes. 
+        
+2. **Students with similar Ability (Comparing grade 4 and 6)**
+    1. When comparing all students, we see that primacy and recency effects are bigger for grade 6 (opposite of the number game)
+    2. Same ability
+        1. Primacy: Bigger for grade 4 
+        2. Recency: CI is big for grade 6 so not much difference (meaning positive towards grade 4) 
+3. **Interaction models** 
+    1. *The interaction models do not fit better*. They are too complicated. 
+    2. Set Size Interaction 
+        1. For grades 4, 5, the interaction loses the main effect of position_effect (other way around mole game). For grade 6,  set_size main effect is also lost. 
+        2. The interaction of set size with the last item and position rate does not change much as CI gets bigger with grade level 
+        
+To sum up, primacy and recency increase. CI grows with grade levels for other predictors. With the same ability students, the effect reverts. The interactions do not explain much. 
