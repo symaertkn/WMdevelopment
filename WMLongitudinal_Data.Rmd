@@ -1,0 +1,554 @@
+---
+title: "WMLongitudinal_Data"
+output: 
+    github_document:
+    html_preview: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Content
+
+In this document we investigate how much time series data we have for students. 
+  - How many students played frequently for a long time?
+  - How many students played significantly at one point and then played again later in development? 
+  
+  
+# Load Data
+
+```{r lib, include=FALSE}
+#Library 
+library(lubridate)
+library(dplyr)
+library(purrr)
+library(tidyverse)
+
+```
+```{r data, include=FALSE}
+load("~/research-collaboration/data-ro/data-users-40-66-2023-10-31.Rdata")
+load("~/research-collaboration/data-ro/data-logs_66-2023-10-31.Rdata")
+load("~/research-collaboration/data-ro/data-logs_40-2023-10-31.Rdata")
+load("~/code_seyma/WMBenchmark/data/items.Rdata")
+items_mole_trimmed <- readRDS( file = "/home/user-047/code_seyma/WMBenchmark/data/items_mole_trimmed.rds")
+```
+
+# Number Game
+
+The following code takes time so I run and saved it to use later. So, they're commented. 
+
+```{r cleaning}
+# logs_66$year <- format(as.Date(logs_66$created), "%Y")
+
+#Some students play for several years so we get the year and user and put them together to work on the later.
+# logs_66_grade <- logs_66 %>%
+#   filter(grade %in% c(3, 4, 5, 6, 7, 8)) %>%
+#   mutate(userid_year = paste0(user_id, "-", year)) #hack for easier filtering
+
+
+# logs_66_grade <- logs_66_grade %>%
+#   mutate(created_date = as.Date(created),
+#          quarter = paste(year(created_date), quarter(created_date), sep = "-Q"))
+
+
+#add set size 
+# items$answer_options_clean <-
+#    sapply(regmatches(items$answer_options, gregexpr("[0-9]", items$answer_options)), paste, collapse = "")
+
+# items_66 <- items %>% 
+#   filter(domain_id == 66) %>% 
+#   mutate(item_id = id) %>% 
+#   mutate(set_size = nchar(answer_options_clean)) %>% 
+#   select(item_id, set_size)
+
+# logs_number <- merge(logs_66_grade, items_66, by = "item_id")
+
+#make a unique month variable
+# logs_number <- logs_number %>%
+#   mutate(created_date = as.Date(created),
+#          year_month = format(created_date, "%Y-%m"))
+
+#make duration variable (the time between their first and last recorded activity)
+# duration_user <- logs_number %>% 
+#   group_by(user_id) %>% 
+#   summarise(start = min(created_date), end= max(created_date)) %>% 
+#   mutate(duration = end -start) %>% 
+#   ungroup() 
+
+# duration_user <- duration_user %>% 
+#   select(user_id, duration)
+
+# logs_number <- merge(logs_number, duration_user, by = "user_id")
+
+#saveRDS(logs_number, file="~/code_seyma/WMDevelopmentProject/data/logs_number.rds")
+```
+
+## Student Selection
+
+```{r dataload, include=FALSE}
+logs_number <- readRDS(file="~/code_seyma/WMDevelopmentProject/data/logs_number.rds")
+```
+
+```{r}
+#functions for student selection 
+
+filter_users_by_plays_and_quarters <- function(data, 
+                                               min_plays = 30, 
+                                               min_quarters = 8, #we have total of 16 quarters
+                                               excl_quarters = c(),
+                                               min_duration = 90) 
+  {
+  data %>%
+    filter(!quarter %in% excl_quarters ) %>% #excluded times, we may want to have smaller time interval
+    filter( duration >= min_duration  ) %>% # filter for the duration students played the game
+    group_by(user_id, quarter) %>%
+    filter(n() >= min_plays) %>%  # Ensure at least `min_plays` plays in each quarter
+    ungroup() %>%
+    group_by(user_id) %>%
+    summarise(unique_quarters = n_distinct(quarter), .groups = "drop") %>%
+    filter(unique_quarters >= min_quarters ) %>% #At least `min_quarters` distinct quarters
+    summarise(n_users = n(), .groups = "drop") %>%
+    pull(n_users)
+}
+
+filter_users_by_plays_and_months <- function(data, 
+                                               min_plays = 10, 
+                                               min_months = 8,
+                                               excl_month = c(),
+                                             min_duration = 90) 
+{
+  data %>%
+    filter(!year_month %in% excl_month ) %>% #excluded times, we may want to have smaller time interval
+    filter( duration >= min_duration  ) %>% # filter for the duration students played the game
+    group_by(user_id, year_month) %>%
+    filter(n() >= min_plays) %>%  # Ensure at least `min_plays` plays in each month
+    ungroup() %>%
+    group_by(user_id) %>%
+    summarise(unique_month = n_distinct(year_month), .groups = "drop") %>%
+    filter(unique_month >= min_months) %>%  # At least `min_quarters` distinct month
+    select(user_id) %>% 
+    nrow()
+}
+
+
+#Played the game intensely (many plays and long total duration) in one month, but then had long breaks between these intense sessions:
+infrequent_intense_users <- function(data, 
+                                             min_plays = 40, #minimum number plays given year_month to count as an intense user.
+                                             min_duration = 90, #min at least 90 days between first and last activity of students
+                                     min_difference = 90) #minimum number of days between intense months. 
+{
+  result <- data %>%
+    filter( duration >= min_duration  ) %>% # filter for the duration students played the game
+    group_by(user_id, year_month) %>%
+    filter(n() >= min_plays) %>%  # filter for months for at least `min_plays` plays
+    ungroup() %>%
+    group_by(user_id, year_month) %>%
+    summarise(last_day_month = max(created)) %>% 
+    ungroup() %>% 
+    # Arrange each user's entries by the last_day_month to ensure chronological order
+    arrange(user_id, last_day_month) %>%
+    # Group by user to compute differences within each user
+    group_by(user_id) %>%
+    # Calculate the time difference using lag()
+    mutate(
+      days_since_previous = as.numeric(
+        difftime(last_day_month, lag(last_day_month), units = "days")
+      )
+    ) %>%
+    ungroup() %>% 
+    group_by(user_id, days_since_previous) %>% 
+    filter(days_since_previous >= min_difference) %>% 
+    ungroup() %>% 
+    select(user_id) %>% 
+    distinct() %>%  # Get unique user_ids
+    summarise(count = n())  # Count the unique users
+  return(result$count)  # Return just the count
+}
+
+```
+
+```{r}
+filtered_user_q <- filter_users_by_plays_and_quarters(logs_number)
+filtered_user_q
+```
+
+```{r}
+differnce_user_month <- infrequent_intense_users(logs_number)
+differnce_user_month
+```
+### Table
+
+We need a table showing how much students we have for the student selection we want. 
+Start from strict to lenient
+Table: min_play, min_quarter, number_student, min_duration
+
+#### Month-Intense-Dif
+
+```{r}
+#####Month-Intense-Dif##########
+# param_grid <- expand.grid(
+#   min_plays = c(20, 30, 40, 50),
+#   min_difference = c(90, 120, 360, 450),
+#   min_duration = c(90, 120, 360, 450)
+# )
+
+# Apply the function over each row of parameter combinations
+# results_diff_month <- param_grid %>%
+#   mutate(
+#     n_users = pmap_dbl(list(min_plays, min_difference, min_duration), 
+#                        ~ infrequent_intense_users(data = logs_number, 
+#                                                             min_plays = ..1, 
+#                                                             min_difference = ..2, 
+#                                                             min_duration = ..3))
+#  )
+
+#saveRDS(results_diff_month, file="~/code_seyma/WMDevelopmentProject/data/results_diff_month.rds")
+results_diff_month <- readRDS(file="~/code_seyma/WMDevelopmentProject/data/results_diff_month.rds")
+```
+```{r}
+results_diff_month
+```
+
+```{r fig.height=6, fig.width=8}
+ggplot(results_diff_month, aes(x = factor(min_duration), y = n_users, fill = factor(min_plays))) +
+  geom_col(position = "dodge") + 
+  geom_text(aes(label = n_users), position = position_dodge(width = 0.9), vjust = -0.5, size = 3) +
+  facet_wrap(~ min_difference) +
+  labs(
+    title = "User Counts by Plays and Duration, Faceted 
+    by Min Difference",
+    x = "Minimum Duration", #Min days for game activity
+    y = "# Users",
+    fill = "Minimum Plays" 
+  ) +
+  theme_minimal()
+```
+#### Quarter
+
+```{r}
+######Quarter############
+# Create a grid of parameter combinations
+# param_grid <- expand.grid(
+#   min_plays = c(10, 20, 30, 40),
+#   min_quarters = c(2, 4, 6, 8),
+#   min_duration = c(60, 90, 120, 360)
+# )
+
+# Apply the function over each row of parameter combinations
+# results_quarter <- param_grid %>%
+#   mutate(
+#     n_users = pmap_dbl(list(min_plays, min_quarters, min_duration), 
+#                        ~ filter_users_by_plays_and_quarters(data = logs_number, 
+#                                                             min_plays = ..1, 
+#                                                             min_quarters = ..2, 
+#                                                             min_duration = ..3))
+#   )
+
+#saveRDS(results_quarter, file="~/code_seyma/WMDevelopmentProject/data/results_quarter.rds")
+results_quarter <- readRDS(file="~/code_seyma/WMDevelopmentProject/data/results_quarter.rds")
+```
+
+
+```{r}
+print(results_quarter)
+```
+So there are 78293 students who played the games at least 2 months and played at least one session in each two quarter. 
+
+
+
+```{r fig.height=8, fig.width=10}
+ggplot(results_quarter, aes(x = factor(min_plays), y = n_users, fill = factor(min_quarters))) +
+  geom_col(position = "dodge") +
+  geom_text(aes(label = n_users), position = position_dodge(width = 0.9), vjust = -0.5, size = 3) +
+  facet_wrap(~ min_duration) +
+  labs(
+    title = "User Counts by Plays and Quarters, Faceted 
+    by Min Duration",
+    x = "Minimum Plays", #min play for each unique quarter  
+    y = "# Users",
+    fill = "Min Quarters"
+  ) +
+  theme_minimal()
+```
+
+#### Month
+
+```{r}
+######Month############
+# Create a grid of parameter combinations
+# param_grid <- expand.grid(
+#   min_plays = c(10, 20, 30, 40),
+#   min_months = c(2, 4, 6, 8, 10),
+#   min_duration = c(60, 90, 120, 360)
+# )
+
+# Apply the function over each row of parameter combinations
+# results_month <- param_grid %>%
+#   mutate(
+#     n_users = pmap_dbl(list(min_plays, min_months, min_duration), 
+#                        ~ filter_users_by_plays_and_months(data = logs_number, 
+#                                                             min_plays = ..1, 
+#                                                             min_months = ..2, 
+#                                                             min_duration = ..3))
+#   )
+
+#saveRDS(results_month, file="~/code_seyma/WMDevelopmentProject/data/ results_month.rds")
+results_month <- readRDS( file="~/code_seyma/WMDevelopmentProject/data/results_month.rds")
+```
+
+
+```{r}
+print(results_month)
+```
+
+
+```{r fig.height=6, fig.width=8}
+ggplot(results_month, aes(x = factor(min_plays), y = n_users, fill = factor(min_months))) +
+  geom_col(position = "dodge") +
+  geom_text(aes(label = n_users), position = position_dodge(width = 0.9), vjust = -0.5, size = 2) +
+  facet_wrap(~ min_duration) +
+  labs(
+    title = "User Counts by Plays and Months, Faceted 
+    by Min Duration",
+    x = "Minimum Plays",
+    y = "# Users",
+    fill = "Min Months"
+  ) +
+  theme_minimal()
+```
+### Students playing from grade 3 to 6 ###
+
+```{r}
+user_different_grades <- function(data, min_plays = 30, grades = c(3, 6)) {
+  results <- data %>%
+    group_by(user_id, year_month) %>%
+    filter(n() >= min_plays) %>%  
+    ungroup() %>%
+    group_by(user_id) %>%
+    filter(all(grades %in% grade)) %>%  # Keep only users who have all specified grades
+    ungroup()
+  
+  return(length(unique(results$user_id)))
+}
+```
+
+
+```{r}
+#user_35 <- user_different_grades(data = logs_number, grades = c(3, 5)) #203
+#user_36 <- user_different_grades(data = logs_number, grades = c(3, 6)) #66
+#user_37 <- user_different_grades(data = logs_number, grades = c(3, 7)) #7
+```
+
+
+# Mole Game
+
+```{r}
+# This selection has been saved. Check below. 
+
+#Some students play for several years so we get the year and user and put them together to work on the later
+#logs_40$year <- format(as.Date(logs_40$created), "%Y")
+
+#Also filter for grade 3 to 8 
+# logs_40_grade <- logs_40 %>%
+#   filter(grade %in% c(1,2,3, 4, 5, 6, 7, 8)) %>%
+#   mutate(userid_year = paste0(user_id, "-", year)) #hack for easier filtering
+
+#Divide the data into quarters
+# logs_40_grade <- logs_40_grade %>%
+#  mutate(created_date = as.Date(created),
+#         quarter = paste(year(created_date), quarter(created_date), sep = "-Q"))
+
+
+#add set size and answer_option_clean
+# items$answer_options_clean <-
+#   sapply(regmatches(items$answer_options, gregexpr("[0-9]", items$answer_options)), paste, collapse = "")
+
+# items_40 <- items %>% 
+#   filter(domain_id == 40) %>% 
+#   mutate(item_id = id) %>% 
+#   mutate(set_size = nchar(answer_options_clean)/2) %>%
+#   select(item_id, set_size, answer_options_clean)
+
+#logs_mole <- merge(logs_40_grade, items_40, by = "item_id")
+
+# logs_mole$answer_clean <-
+#   sapply(regmatches(logs_mole$answer, gregexpr("[0-9]", logs_mole$answer)), paste, collapse = "")
+
+#make a unique month variable
+# logs_mole <- logs_mole %>%
+#   mutate(created_date = as.Date(created),
+#          year_month = format(created_date, "%Y-%m"))
+
+#make duration variable 
+# duration_user <- logs_mole %>% 
+#   group_by(user_id) %>% 
+#   summarise(start = min(created_date), end= max(created_date)) %>% 
+#   mutate(duration = end -start) %>% 
+#   ungroup() 
+
+# duration_user <- duration_user %>% 
+#   select(user_id, duration)
+
+#logs_mole <- merge(logs_mole, duration_user, by = "user_id")
+
+#saveRDS(logs_mole, file="~/code_seyma/WMDevelopmentProject/data/logs_mole.rds")
+```
+
+## Student Selection
+
+```{r include=FALSE}
+logs_mole <- readRDS(file="~/code_seyma/WMDevelopmentProject/data/logs_mole.rds")
+```
+
+```{r}
+#same functions for student selection 
+
+filtered_user_q <- filter_users_by_plays_and_quarters(logs_mole)
+differnce_user_month <- infrequent_intense_users(logs_mole)
+filtered_user_q
+differnce_user_month
+```
+### Table
+We need a table showing how much students we have for the student selection we want. 
+Start from strict to lenient
+Table: min_play, min_quarter, number_student, min_duration
+
+#### Month-Intense-Dif
+```{r}
+#####Month-Intense-Dif##########
+# Create a grid of parameter combinations
+#param_grid <- expand.grid(
+#   min_plays = c(20, 30, 40, 50),
+#   min_difference = c(90, 120, 360, 450),
+#   min_duration = c(90, 120, 360, 450)
+# )
+
+#Apply the function over each row of parameter combinations
+# results_diff_month_mole <- param_grid %>%
+#   mutate(
+#     n_users = pmap_dbl(list(min_plays, min_difference, min_duration),
+#                        ~ infrequent_intense_users(data = logs_mole,
+#                                                             min_plays = ..1,
+#                                                             min_difference = ..2,
+#                                                             min_duration = ..3))
+#   )
+
+# saveRDS(results_diff_month_mole, file="~/code_seyma/WMDevelopmentProject/data/results_diff_month_mole.rds")
+results_diff_month_mole <- readRDS(file="~/code_seyma/WMDevelopmentProject/data/results_diff_month_mole.rds")
+```
+
+
+```{r}
+ggplot(results_diff_month_mole, aes(x = factor(min_duration), y = n_users, fill = factor(min_plays))) +
+  geom_col(position = "dodge") + 
+  geom_text(aes(label = n_users), position = position_dodge(width = 0.9), vjust = -0.5, size = 3) +
+  facet_wrap(~ min_difference) +
+  labs(
+    title = "User Counts by Plays and Duration, Faceted 
+    by Min Difference",
+    x = "Minimum Duration",
+    y = "# Users",
+    fill = "Minimum Plays"
+  ) +
+  theme_minimal()
+```
+
+#### Quarter 
+```{r}
+######Quarter############
+# Create a grid of parameter combinations
+# param_grid <- expand.grid(
+#   min_plays = c(10, 20, 30, 40),
+#   min_quarters = c(2, 4, 6, 8),
+#   min_duration = c(60, 90, 120, 360)
+# )
+# 
+# # Apply the function over each row of parameter combinations
+# results_quarter_mole <- param_grid %>%
+#   mutate(
+#     n_users = pmap_dbl(list(min_plays, min_quarters, min_duration), 
+#                        ~ filter_users_by_plays_and_quarters(data = logs_mole, 
+#                                                             min_plays = ..1, 
+#                                                             min_quarters = ..2, 
+#                                                             min_duration = ..3))
+#   )
+# 
+# saveRDS(results_quarter_mole, file="~/code_seyma/WMDevelopmentProject/data/results_quarter_mole.rds")
+results_quarter_mole <- readRDS(file="~/code_seyma/WMDevelopmentProject/data/results_quarter_mole.rds")
+```
+
+
+```{r}
+ggplot(results_quarter_mole, aes(x = factor(min_plays), y = n_users, fill = factor(min_quarters))) +
+  geom_col(position = "dodge") +
+  geom_text(aes(label = n_users), position = position_dodge(width = 0.9), vjust = -0.5, size = 3) +
+  facet_wrap(~ min_duration) +
+  labs(
+    title = "User Counts by Plays and Quarters, Faceted 
+    by Min Duration in Mole game",
+    x = "Minimum Plays",
+    y = "# Users",
+    fill = "Min Quarters"
+  ) +
+  theme_minimal()
+```
+
+#### Month
+```{r}
+######Month############
+# Create a grid of parameter combinations
+# param_grid <- expand.grid(
+#   min_plays = c(10, 20, 30, 40),
+#   min_months = c(2, 4, 6, 8, 10),
+#   min_duration = c(60, 90, 120, 360)
+# )
+# 
+# # Apply the function over each row of parameter combinations
+# results_month_mole <- param_grid %>%
+#   mutate(
+#     n_users = pmap_dbl(list(min_plays, min_months, min_duration), 
+#                        ~ filter_users_by_plays_and_months(data = logs_mole, 
+#                                                             min_plays = ..1, 
+#                                                             min_months = ..2, 
+#                                                             min_duration = ..3))
+#   )
+# 
+# saveRDS(results_month_mole, file="~/code_seyma/WMDevelopmentProject/data/results_month_mole.rds")
+results_month_mole <- readRDS( file="~/code_seyma/WMDevelopmentProject/data/results_month_mole.rds")
+```
+
+
+```{r}
+print(results_month_mole)
+```
+
+
+```{r}
+ggplot(results_month_mole, aes(x = factor(min_plays), y = n_users, fill = factor(min_months))) +
+  geom_col(position = "dodge") +
+  geom_text(aes(label = n_users), position = position_dodge(width = 0.9), vjust = -0.5, size = 2) +
+  facet_wrap(~ min_duration) +
+  labs(
+    title = "User Counts by Plays and Months, Faceted 
+    by Min Duration",
+    x = "Minimum Plays",
+    y = "# Users",
+    fill = "Min Months"
+  ) +
+  theme_minimal()
+```
+
+### Students playing from grade 3 to 6
+
+```{r}
+### Students playing from grade 3 to 6 ###
+
+#user_35 <- user_different_grades(data = logs_mole, grades = c(3, 5)) # 1079
+#user_36 <- user_different_grades(data = logs_mole, grades = c(3, 6)) #339
+#user_37 <- user_different_grades(data = logs_mole, grades = c(3, 7)) #16
+
+#user_25 <- user_different_grades(data = logs_mole, grades = c(2, 5)) # 155
+#user_26 <- user_different_grades(data = logs_mole, grades = c(2, 6)) # 9
+#user_27 <- user_different_grades(data = logs_mole, grades = c(2, 7)) # 2
+```
