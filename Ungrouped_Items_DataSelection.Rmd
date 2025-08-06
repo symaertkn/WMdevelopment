@@ -1,0 +1,294 @@
+---
+title: "Ungrouped_Items_Selection"
+output: 
+    github_document:
+    html_preview: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r include=FALSE}
+##Library
+library(dplyr)
+library(lubridate)
+library(purrr)
+library(ggplot2)
+library(jsonlite)
+library(stringr)
+
+#The following data includes: 
+
+#filter for grade 3 to 8 
+#add set size and answer_option_clean to items dataset
+#merge with logs by item_id
+#create answer_clean 
+#make a unique month variable
+#make duration variable (min created data - max created data for per student)
+#add accuracuy for per serial position 
+
+logs_number_accuracy <- readRDS(file="~/code_seyma/WMDevelopmentProject/logs_number_accuracy.rds") #It comes from primacy and recency doc
+
+#The following data includes: 
+
+#filter for grade 3 to 8 
+#Divide the data into quarters
+#add set size and answer_option_clean to items dataset
+#merge with logs by item_id
+#create answer_clean 
+#make a unique month variable
+#make duration variable (min created data - max created data for per student)
+
+logs_mole <- readRDS(file="~/code_seyma/WMDevelopmentProject/logs_mole.rds")
+
+```
+
+# Number 
+```{r}
+#Load the item set and filer the number game
+load("~/code_seyma/WMBenchmark/data/items.Rdata")
+
+items_66 <- items %>%
+  filter(domain_id == "66")
+```
+
+```{r}
+###Extract predictors:
+#### Set size and answer_options_clean
+
+items_66$answer_options_clean <-
+  sapply(regmatches(items_66$answer_options, gregexpr("[0-9]", items_66$answer_options)), paste, collapse = "")
+
+items_66$set_size <- stri_length(items_66$answer_options_clean)
+
+```
+```{r}
+#### Repetition and Duplicates:
+
+for (i in 1:nrow(items_66)) {
+  answer <- strsplit(unlist(items_66[i, "answer_options"]), split = "")
+  answer <- as.numeric(answer[[1]][which(answer[[1]] %in% as.character(0:9))])
+
+  # Find all values that occur more than once, which may either be duplicates or repetitions
+  doubles <- answer[answer %in% answer[duplicated(answer)]]
+
+  if (length(doubles) == 0) {
+
+    repetition <- 0
+    duplicate <- 0
+
+    # duplicates or repetitions?
+  } else if (length(doubles) > 0) {
+
+    repetition <- 0
+    duplicate <- 0
+
+    # Loop over the unique values that occur more than once (for example, [2,2] and [0,1] may both occur more than once)
+    for (h in 1:length(unique(doubles))) {
+
+      all_indices <- which(answer == unique(doubles)[h])
+      # Then look at the difference between all the indices to figure out if they are repetitions (diff == 1) or duplicated (diff != 1)
+      repetition <- repetition + sum(diff(all_indices)==1)
+      duplicate <- duplicate + sum(diff(all_indices)!=1)
+
+    }
+  }
+
+  # calculate the proportions
+  items_66[i, "repetition"] <- repetition
+  items_66[i, "duplicate"] <- duplicate
+  items_66[i, "prop_repetition"] <- repetition / length(answer)
+  items_66[i, "prop_duplicate"] <- duplicate / length(answer)
+
+}
+```
+
+```{r}
+#add repetition and duplicate info to logs to use it for primacy and recency effect in another doc
+
+# items_66_rep <- items_66 %>% 
+#   mutate(item_id = id) %>% 
+#   select(item_id, repetition, duplicate) 
+# 
+# logs_number_rep <- logs_number_accuracy %>%
+#   left_join(items_66_rep, by = "item_id")
+#  
+# saveRDS(logs_number_rep, file="~/code_seyma/WMDevelopmentProject/logs_number_rep.rds")
+
+```
+
+# Mole
+
+```{r}
+load("~/code_seyma/WMBenchmark/data/items.Rdata")
+```
+
+
+```{r}
+items_40 <- items %>%
+  filter(domain_id == "40")
+
+#turn answer ooptions into coordinates
+items_40$coordinates <- lapply(
+  regmatches(items_40$answer_options, gregexpr("[0-9]", items_40$answer_options)),
+  function(x) as.numeric(x)
+)
+
+items_40 <- items_40 %>% 
+  mutate(item_id = id) %>% 
+  select(item_id, coordinates, answer_options, rating )
+
+for (i in 1:nrow(items_40)) {
+  coords <- items_40$coordinates[[i]]
+  
+  # Turn into coordinate pairs
+  mat <- matrix(coords, ncol = 2, byrow = TRUE)
+  
+  items_40$coord_matrix[[i]] <- mat
+}
+
+
+
+#Structured vs Unstructured
+
+items_40$structured_count <- 0
+
+for (i in 1:nrow(items_40)) {
+  coord_matrix <- items_40$coord_matrix[[i]]
+  
+  # Check if coord_matrix exists and has at least 2 rows
+  if (is.null(coord_matrix) || nrow(coord_matrix) < 2) {
+    items_40$structured_count[i] <- NA  # or 0 if you prefer
+    next
+  }
+  
+  structured_counter <- 0
+  
+  for (k in 2:nrow(coord_matrix)) {
+    dx <- coord_matrix[k, 1] - coord_matrix[k - 1, 1]
+    dy <- coord_matrix[k, 2] - coord_matrix[k - 1, 2]
+    
+    if (dx == 0 || dy == 0 || abs(dx) == abs(dy)) {
+      structured_counter <- structured_counter + 1
+    }
+  }
+  
+  items_40$structured_count[i] <- structured_counter
+}
+
+table(items_40$structured_count)
+
+
+```
+
+```{r}
+items_40$answer_options_clean <-
+  sapply(regmatches(items_40$answer_options, gregexpr("[0-9]", items_40$answer_options)), paste, collapse = "")
+
+items_40 <- items_40 %>% 
+  mutate(set_size = nchar(answer_options_clean)/2)
+
+
+items_40 <- items_40 %>%
+  mutate(
+    structured_proportion = ifelse(set_size > 1, structured_count / (set_size - 1), NA)
+  ) %>% 
+  select(-set_size)
+```
+
+
+```{r}
+# Select Items without stucture or less structure 
+
+items_40_unstructured <- items_40 %>% 
+  filter(structured_count %in% c(0,1))
+
+items_40_unstructured_prop <- items_40 %>% 
+  filter(structured_proportion < 0.3)
+```
+
+
+```{r}
+logs_unstructured <- logs_mole %>% 
+  filter(item_id %in% items_40_unstructured$item_id)
+
+logs_unstructured <- logs_unstructured %>%
+  left_join(items_40_unstructured, by = "item_id")
+```
+
+
+```{r}
+logs_unstructured_prop <- logs_mole %>% 
+  filter(item_id %in% items_40_unstructured_prop$item_id)
+
+logs_unstructured_prop <- logs_unstructured_prop %>%
+  left_join(items_40_unstructured_prop, by = "item_id")
+```
+
+## Add accuracy ##
+
+```{r}
+#clean student's answers:
+logs_unstructured_prop$answer_clean <- gsub("\\D", "", logs_unstructured_prop$answer)
+
+```
+
+```{r}
+accuracy_position <- function(true_coordinates_position, answered_coordinates_position) {
+  # return the accuracy (0 or 1 or NA) for each position of a trial
+  # true_coordinates_position: the true coordinates for this position in this trial
+  # answered_coordinates_position: the answered coordinates for this position in this trial
+  # example: accuracy_position(true_coordinates_position = 31, answered_coordinates_position = 22) is 0
+  
+  # determine if the true and the answered coordinates are equal
+  accuracy = ifelse(
+    test = true_coordinates_position == answered_coordinates_position,
+    yes = 1, no = 0)
+  
+  # overwrite the result if the answered coordinates are NA, so for example if the participant forgot them
+  accuracy = ifelse(
+    test = is.na(answered_coordinates_position),
+    yes = NA, no = accuracy)
+  
+  return(accuracy)
+}
+```
+```{r}
+table(logs_unstructured_prop$set_size)
+```
+
+
+```{r}
+logs_unstructured_prop_accuracy <- logs_unstructured_prop %>%
+  
+  # separate the coordinates of the answer_options_clean and of the answer_clean into pairs of coordinates
+  # example: (answer_options_clean = 110102) becomes (coordinates_pairs_answer_options_1 = 11) and (coordinates_pairs_answer_options_2 = 01) and (coordinates_pairs_answer_options_3 = 02)
+  separate(answer_options_clean, into = paste0("coordinates_pairs_answer_options_", 1:9), sep = seq(2, 18, 2), remove = FALSE) %>%
+  separate(answer_clean, into = paste0("coordinates_pairs_answer_", 1:9), sep = seq(2, 18, 2), remove = FALSE) %>%
+  
+  # there are many empty cells which I will transform to NAs
+  mutate_if(is.character, list(~ na_if(., ""))) %>%
+  
+  # now look at accuracy per serial position
+  mutate(
+    position_1 = accuracy_position(coordinates_pairs_answer_options_1, coordinates_pairs_answer_1),
+    position_2 = accuracy_position(coordinates_pairs_answer_options_2, coordinates_pairs_answer_2),
+    position_3 = accuracy_position(coordinates_pairs_answer_options_3, coordinates_pairs_answer_3),
+    position_4 = accuracy_position(coordinates_pairs_answer_options_4, coordinates_pairs_answer_4),
+    position_5 = accuracy_position(coordinates_pairs_answer_options_5, coordinates_pairs_answer_5),
+    position_6 = accuracy_position(coordinates_pairs_answer_options_6, coordinates_pairs_answer_6),
+    position_7 = accuracy_position(coordinates_pairs_answer_options_7, coordinates_pairs_answer_7),
+    position_8 = accuracy_position(coordinates_pairs_answer_options_8, coordinates_pairs_answer_8),
+    position_9 = accuracy_position(coordinates_pairs_answer_options_9, coordinates_pairs_answer_9)) %>%
+  
+  # remove the separated coordinates of the answer_options_clean and of the answer_clean
+  select(!starts_with("coordinates_pairs_answer"))
+
+saveRDS(logs_unstructured_prop_accuracy, file="~/code_seyma/WMDevelopmentProject/logs_unstructured_prop_accuracy.rds")
+
+```
+
+```{r}
+logs_unstructured_prop_accuracy <- readRDS( file="~/code_seyma/WMDevelopmentProject/logs_unstructured_prop_accuracy.rds")
+```

@@ -1,0 +1,987 @@
+---
+title: "WM_PrimacyandRecency_Devp"
+output: 
+    github_document:
+    html_preview: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r include=FALSE}
+load("~/research-collaboration/data-ro/data-users-40-66-2023-10-31.Rdata")
+load("~/research-collaboration/data-ro/data-logs_66-2023-10-31.Rdata")
+load("~/code_seyma/WMBenchmark/data/items.Rdata")
+logs_number_accuracy <- readRDS(file="~/code_seyma/WMDevelopmentProject/data/logs_number_accuracy.rds")
+logs_number_rep <- readRDS(file="~/code_seyma/WMDevelopmentProject/data/logs_number_rep.rds")
+logs_mole_accuracy <- readRDS(file="~/code_seyma/WMDevelopmentProject/data/logs_mole_accuracy.rds")
+logs_unstructured_prop_accuracy <- readRDS( file="~/code_seyma/WMDevelopmentProject/data/logs_unstructured_prop_accuracy.rds")
+
+
+##Library
+library(dplyr)
+library(lubridate)
+library(purrr)
+library(ggplot2)
+library(tidyr)
+library(patchwork)
+```
+
+```{r include=FALSE}
+accuracy_position <- function(true_coordinates_position, answered_coordinates_position) {
+  # return the accuracy (0 or 1 or NA) for each position of a trial
+  # true_coordinates_position: the true coordinates for this position in this trial
+  # answered_coordinates_position: the answered coordinates for this position in this trial
+  # example: accuracy_position(true_coordinates_position = 31, answered_coordinates_position = 22) is 0
+  
+  # determine if the true and the answered coordinates are equal
+  accuracy = ifelse(
+    test = true_coordinates_position == answered_coordinates_position,
+    yes = 1, no = 0)
+  
+  # overwrite the result if the answered coordinates are NA, so for example if the participant forgot them
+  accuracy = ifelse(
+    test = is.na(answered_coordinates_position),
+    yes = NA, no = accuracy)
+  
+  return(accuracy)
+}
+```
+
+# Cross-sectional 
+## Number Game
+
+```{r include=FALSE}
+# #Filter logs for grade 3 to 8 
+# logs_66_grade <- logs_66 %>%
+#   filter(grade %in% c(3, 4, 5, 6, 7, 8))
+# 
+# 
+# #add set size and answer_option_clean to item dataset 
+# items$answer_options_clean <-
+#   sapply(regmatches(items$answer_options, gregexpr("[0-9]", items$answer_options)), paste, collapse = "")
+# 
+# items_66 <- items %>% 
+#   filter(domain_id == 66) %>% 
+#   mutate(item_id = id) %>% 
+#   mutate(set_size = nchar(answer_options_clean)) %>%
+#   select(item_id, set_size, answer_options_clean)
+# 
+# 
+# logs_66_setsize <- merge(logs_66_grade, items_66, by = "item_id")
+# 
+# 
+# #clean student's answers:
+# logs_66_setsize$answer_clean <- gsub("\\D", "", logs_66_setsize$answer)
+# 
+# #dateformat change
+# logs_number<- logs_66_setsize %>%
+#   mutate(created_date = as.Date(created),
+#          year_month = format(created_date, "%Y-%m"))
+# 
+# #make duration variable 
+# duration_user <- logs_number %>% 
+#   group_by(user_id) %>% 
+#   summarise(start = min(created_date), end= max(created_date)) %>% 
+#   mutate(duration = end -start) %>% 
+#   ungroup() 
+# 
+# duration_user <- duration_user %>% 
+#   select(user_id, duration)
+# 
+# logs_number_duration <- merge(logs_number, duration_user, by = "user_id")
+# 
+# 
+# range(logs_number_duration$set_size) # set size between 2 to 15
+# 
+# 
+# logs_number_accuracy <- logs_number_duration %>%
+#   separate(answer_options_clean, paste0("coordinates_answer_options_", 1:15), sep = seq(1, 15, 1), remove = FALSE) %>%
+#   separate(answer_clean, paste0("coordinates_answer_", 1:15), sep = seq(1, 15, 1), remove = FALSE) %>%
+#   
+#   mutate_if(is.character, list(~ na_if(., ""))) %>%
+# 
+#     # now look at accuracy per serial position
+#     mutate(
+#       position_1 = accuracy_position(coordinates_answer_options_1, coordinates_answer_1),
+#       position_2 = accuracy_position(coordinates_answer_options_2, coordinates_answer_2),
+#       position_3 = accuracy_position(coordinates_answer_options_3, coordinates_answer_3),
+#       position_4 = accuracy_position(coordinates_answer_options_4, coordinates_answer_4),
+#       position_5 = accuracy_position(coordinates_answer_options_5, coordinates_answer_5),
+#       position_6 = accuracy_position(coordinates_answer_options_6, coordinates_answer_6),
+#       position_7 = accuracy_position(coordinates_answer_options_7, coordinates_answer_7),
+#       position_8 = accuracy_position(coordinates_answer_options_8, coordinates_answer_8),
+#       position_9 = accuracy_position(coordinates_answer_options_9, coordinates_answer_9),
+#       position_10 = accuracy_position(coordinates_answer_options_10, coordinates_answer_10),
+#       position_11 = accuracy_position(coordinates_answer_options_11, coordinates_answer_11),
+#       position_12 = accuracy_position(coordinates_answer_options_12, coordinates_answer_12),
+#       position_13 = accuracy_position(coordinates_answer_options_13, coordinates_answer_13),
+#       position_14 = accuracy_position(coordinates_answer_options_14, coordinates_answer_14),
+#       position_15 = accuracy_position(coordinates_answer_options_15, coordinates_answer_15)) %>%
+# 
+#     # remove the separated coordinates of the answer_options_clean and of the answer_clean
+#     select(!starts_with("coordinates_answer"))
+#   
+#   
+# saveRDS(logs_number_accuracy, file="~/code_seyma/WMDevelopmentProject/logs_number_accuracy.rds")
+
+```
+
+```{r}
+#set aside the half of the students and investigate. 
+
+# Select unique students with grade info
+students <- logs_number_accuracy %>%
+  select(user_id, grade) %>%
+  distinct()
+
+set.seed(2012)
+# Sample 50% of students within each grade
+sampled_students <- students %>%
+  group_by(grade) %>%
+  sample_frac(0.5) %>%
+  ungroup()
+
+logs_half <- logs_number_accuracy %>%
+  filter(user_id %in% sampled_students$user_id)
+
+table(logs_half$set_size, logs_half$grade)
+
+logs_half_plt <- logs_half %>%
+  group_by(difficulty, set_size, grade) %>%
+  filter(n() > 50) %>%
+  group_by(difficulty, set_size, grade) %>%
+  summarise(
+    across(starts_with("position_"), list(mean = ~mean(.x, na.rm = TRUE),
+                                          sd = ~sd(.x, na.rm = TRUE))),
+    n = n(), 
+    .groups = "drop"
+  ) %>%
+  pivot_longer(
+    cols = -c(difficulty, set_size, grade, n),
+    names_to = c("position", ".value"),
+    names_pattern = "(.+?)_(mean|sd)$",
+    values_drop_na = TRUE
+  )
+```
+
+
+```{r}
+setsize4<- logs_half_plt %>%
+  filter(set_size == 4 ) %>% 
+  ggplot(aes(x = position, y = mean, group = factor(grade), color = factor(grade))) +
+  
+  # first plot the accuracy per serial position as lines and points
+  geom_line() +
+  geom_point() +
+  geom_errorbar(aes(ymin = mean - sd / sqrt(n), ymax = mean + sd / sqrt(n)), width = 0.1) + #SE 
+  facet_wrap(~ difficulty) +
+  labs(
+    title = "Set size 4 different grades ",
+    x = "Serial position",
+    y = "Averaged accuracy",
+    color = "Grade") +
+  scale_x_discrete(labels = c("position_1" = "1", "position_2" = "2", "position_3" = "3", "position_4" = "4"))+
+  scale_color_brewer(palette = "Set2") +
+  theme_minimal()
+setsize4
+```
+
+
+```{r}
+setsize4diffMedium <- logs_half_plt %>%
+  filter(set_size == 4, difficulty == 1 ) %>% 
+  ggplot(aes(x = position, y = mean, group = factor(grade), color = factor(grade))) +
+  geom_line() +
+  geom_point() +
+  geom_errorbar(aes(ymin = mean - sd / sqrt(n), ymax = mean + sd / sqrt(n)), width = 0.1) + #SE 
+  labs(
+    title = "Number Game: Set size 4 and Medium Diff 
+    for different grades",
+    x = "Serial position",
+    y = "Averaged accuracy",
+    color = "Grade") +
+  scale_x_discrete(labels = c("position_1" = "1", "position_2" = "2", "position_3" = "3", "position_4" = "4"))+
+  scale_color_brewer(palette = "Set2") +
+  theme_minimal()
+setsize4diffMedium
+```
+```{r}
+setsize8 <- logs_half_plt %>%
+  filter(set_size == 8 ) %>% 
+  ggplot(aes(x = position, y = mean, group = factor(grade), color = factor(grade))) +
+  geom_line() +
+  geom_point() +
+  geom_errorbar(aes(ymin = mean - sd / sqrt(n), ymax = mean + sd / sqrt(n)), width = 0.1) + #SE 
+  facet_wrap(~ difficulty) +
+  labs(
+    title = "Set size 8 and diff Medium 
+    for different grades",
+    x = "Serial position",
+    y = "Averaged accuracy",
+    color = "Grade") +
+  scale_x_discrete(labels = c("position_1" = "1", "position_2" = "2", "position_3" = "3", "position_4" = "4",
+                              "position_5" = "5", "position_6" = "6", "position_7" = "7", "position_8" = "8"))+
+  scale_color_brewer(palette = "Set2") +
+  theme_minimal()
+setsize8
+
+setsize8diffHard <- logs_half_plt %>%
+  filter(set_size == 8, difficulty == 2 ) %>% 
+  ggplot(aes(x = position, y = mean, group = factor(grade), color = factor(grade))) +
+  
+  # first plot the accuracy per serial position as lines and points
+  geom_line() +
+  geom_point() +
+  geom_errorbar(aes(ymin = mean - sd / sqrt(n), ymax = mean + sd / sqrt(n)), width = 0.1) + #SE 
+  #facet_wrap(~ difficulty) +
+  labs(
+    title = "NumberGame: Set size 8 and diff Hard 
+    for different grades",
+    x = "Serial position",
+    y = "Averaged accuracy",
+    color = "Grade") +
+  scale_x_discrete(labels = c("position_1" = "1", "position_2" = "2", "position_3" = "3", "position_4" = "4",
+                              "position_5" = "5", "position_6" = "6", "position_7" = "7", "position_8" = "8"))+
+  scale_color_brewer(palette = "Set2") +
+  theme_minimal()
+setsize8diffHard
+```
+```{r}
+setsize10 <- logs_half_plt %>%
+  filter(set_size == 10) %>% 
+  ggplot(aes(x = position, y = mean, group = factor(grade), color = factor(grade))) +
+  
+  # first plot the accuracy per serial position as lines and points
+  geom_line() +
+  geom_point() +
+  geom_errorbar(aes(ymin = mean - sd / sqrt(n), ymax = mean + sd / sqrt(n)), width = 0.1) + #SE 
+  facet_wrap(~ difficulty) +
+  labs(
+    title = "Set size 10 for different grades",
+    x = "Serial position",
+    y = "Averaged accuracy",
+    color = "Grade") +
+  scale_x_discrete(labels = as.factor(c("position_1" = "1", "position_2" = "2", "position_3" = "3", "position_4" = "4", "position_5" = "5",
+                              "position_6" = "6", "position_7" = "7", "position_8" = "8", "position_9" = "9", "position_10" = "10")))+
+  scale_color_brewer(palette = "Set2") +
+  theme_minimal()
+setsize10
+```
+```{r}
+plot_small <- logs_half_plt %>%
+  filter(grade == 4, difficulty == 2, set_size <= 8) %>%
+  ggplot(aes(x = position, y = mean, group = factor(set_size), color = factor(set_size))) +
+  geom_line() +
+  geom_point() +
+  geom_errorbar(aes(ymin = mean - sd / sqrt(n), ymax = mean + sd / sqrt(n)), width = 0.1) +
+  labs(title = "Set Size ≤ 8", x = "Serial Position", y = "Average Accuracy", color = "Set Size") +
+  scale_x_discrete(labels = as.factor(c("position_1" = "1", "position_2" = "2", "position_3" = "3", "position_4" = "4",
+                                        "position_5" = "5", "position_6" = "6", "position_7" = "7", "position_8" = "8", "position_9" = "9",
+                                        "position_10" = "10", "position_11" = "11", "position_12" = "12", "position_13" = "13", "position_14" = "14", "position_15" = "15"))) +
+  scale_color_brewer(palette = "Set2") +
+  theme_minimal()
+
+plot_large <- logs_half_plt %>%
+  filter(grade == 4, difficulty == 2, set_size > 8) %>%
+  ggplot(aes(x = position, y = mean, group = factor(set_size), color = factor(set_size))) +
+  geom_line() +
+  geom_point() +
+  geom_errorbar(aes(ymin = mean - sd / sqrt(n), ymax = mean + sd / sqrt(n)), width = 0.1) +
+  labs(title = "Set Size > 8", x = "Serial Position", y = "Average Accuracy", color = "Set Size") +
+  scale_x_discrete(labels = as.factor(c("position_1" = "1", "position_2" = "2", "position_3" = "3", "position_4" = "4",
+                                        "position_5" = "5", "position_6" = "6", "position_7" = "7", "position_8" = "8", "position_9" = "9",
+                                        "position_10" = "10", "position_11" = "11", "position_12" = "12", "position_13" = "13", "position_14" = "14", "position_15" = "15"))) +
+  scale_color_brewer(palette = "Set2") +
+  theme_minimal()
+
+plot_small / plot_large + plot_annotation(title = "Grade 4 Difficulty: Hard")
+```
+
+### Primacy and Recency Effect with un-grouped items (Repetition)
+
+```{r}
+#set aside the half of the students and investigate. 
+# Select unique students with grade info
+students <- logs_number_rep %>%
+  select(user_id, grade) %>%
+  distinct()
+
+set.seed(2012)
+# Sample 50% of students within each grade
+sampled_students <- students %>%
+  group_by(grade) %>%
+  sample_frac(0.5) %>%
+  ungroup()
+
+logs_number_rep_half <- logs_number_rep %>%
+  filter(user_id %in% sampled_students$user_id)
+
+#Select unrepeated and unduplicated items
+logs_number_rep_half_unrepeated_undupl <- logs_number_rep_half %>% 
+  filter(repetition == 0 & duplicate == 0)
+
+#Select repeated and duplicated items
+logs_number_half_rep_dupl <- logs_number_rep_half %>% 
+  filter(repetition != 0 & duplicate != 0)
+```
+
+```{r}
+logs_half_unrepeated_undupl <- logs_number_rep_half_unrepeated_undupl %>%
+  group_by(difficulty, set_size, grade) %>%
+  filter(n() > 50) %>%
+  group_by(difficulty, set_size, grade) %>%
+  summarise(
+    across(starts_with("position_"), list(mean = ~mean(.x, na.rm = TRUE),
+                                          sd = ~sd(.x, na.rm = TRUE))),
+    n = n(), 
+    .groups = "drop"
+  ) %>%
+  pivot_longer(
+    cols = -c(difficulty, set_size, grade, n),
+    names_to = c("position", ".value"),
+    names_pattern = "(.+?)_(mean|sd)$",
+    values_drop_na = TRUE
+  )
+
+logs_number_half_rep_dupl <- logs_number_half_rep_dupl %>%
+  group_by(difficulty, set_size, grade) %>%
+  filter(n() > 50) %>%
+  group_by(difficulty, set_size, grade) %>%
+  summarise(
+    across(starts_with("position_"), list(mean = ~mean(.x, na.rm = TRUE),
+                                          sd = ~sd(.x, na.rm = TRUE))),
+    n = n(), 
+    .groups = "drop"
+  ) %>%
+  pivot_longer(
+    cols = -c(difficulty, set_size, grade, n),
+    names_to = c("position", ".value"),
+    names_pattern = "(.+?)_(mean|sd)$",
+    values_drop_na = TRUE
+  )
+```
+
+
+```{r}
+setsize4_dif1_unrep <- logs_half_unrepeated_undupl %>%
+  filter(set_size == 4 & difficulty == 1) %>% 
+  ggplot(aes(x = position, y = mean, group = factor(grade), color = factor(grade))) +
+  
+  # first plot the accuracy per serial position as lines and points
+  geom_line() +
+  geom_point() +
+  geom_errorbar(aes(ymin = mean - sd / sqrt(n), ymax = mean + sd / sqrt(n)), width = 0.1) + #SE 
+  #facet_wrap(~ difficulty) +
+  labs(
+    title = "Set size 4 Unrepeated",
+    x = "Serial position",
+    y = "Averaged accuracy",
+    color = "Grade") +
+  scale_x_discrete(labels = c("position_1" = "1", "position_2" = "2", "position_3" = "3", "position_4" = "4"))+
+  scale_color_brewer(palette = "Set2") +
+  theme_minimal() +
+  ylim(0.80, 0.95)
+setsize4_dif1_unrep
+```
+
+
+```{r}
+setsize4_dif1_rep <- logs_number_half_rep_dupl %>%
+  filter(set_size == 4 & difficulty == 1) %>% 
+  ggplot(aes(x = position, y = mean, group = factor(grade), color = factor(grade))) +
+  
+  # first plot the accuracy per serial position as lines and points
+  geom_line() +
+  geom_point() +
+  geom_errorbar(aes(ymin = mean - sd / sqrt(n), ymax = mean + sd / sqrt(n)), width = 0.1) + #SE 
+  #facet_wrap(~ difficulty) +
+  labs(
+    title = "Set size 4 Repeated",
+    x = "Serial position",
+    y = "Averaged accuracy",
+    color = "Grade") +
+  scale_x_discrete(labels = c("position_1" = "1", "position_2" = "2", "position_3" = "3", "position_4" = "4"))+
+  scale_color_brewer(palette = "Set2") +
+  theme_minimal() +
+  ylim(0.80, 0.95)
+setsize4_dif1_rep
+```
+
+
+```{r}
+library(patchwork)
+
+setsize4_repVsUnrep <- (setsize4_dif1_unrep + setsize4_dif1_rep) +
+  plot_layout(guides = "collect") +
+  plot_annotation(title = "Set Size 4: Accuracy by Serial Position - Medium Difficulty")
+setsize4_repVsUnrep
+```
+```{r}
+setsize5_unrepeated <- logs_half_unrepeated_undupl %>%
+  filter(set_size == 5) %>% 
+  ggplot(aes(x = position, y = mean, group = factor(grade), color = factor(grade))) +
+  geom_line() +
+  geom_point() +
+  geom_errorbar(aes(ymin = mean - sd / sqrt(n), ymax = mean + sd / sqrt(n)), width = 0.1) + #SE 
+  facet_wrap(~ difficulty) +
+  labs(
+    title = "Set size 5 for different grades - unrepeated",
+    x = "Serial position",
+    y = "Averaged accuracy",
+    color = "Grade") +
+  scale_x_discrete(labels = c("position_1" = "1", "position_2" = "2", "position_3" = "3", "position_4" = "4", "position_5" = "5"))+
+  scale_color_brewer(palette = "Set2") +
+  theme_minimal() +
+  ylim(0.65, 1)
+
+setsize5_repeated <- logs_number_half_rep_dupl %>%
+  filter(set_size == 5) %>% 
+  ggplot(aes(x = position, y = mean, group = factor(grade), color = factor(grade))) +
+  
+  # first plot the accuracy per serial position as lines and points
+  geom_line() +
+  geom_point() +
+  geom_errorbar(aes(ymin = mean - sd / sqrt(n), ymax = mean + sd / sqrt(n)), width = 0.1) + #SE 
+  facet_wrap(~ difficulty) +
+  labs(
+    title = "Set size 5 for different grades - repeated",
+    x = "Serial position",
+    y = "Averaged accuracy",
+    color = "Grade") +
+  scale_x_discrete(labels = c("position_1" = "1", "position_2" = "2", "position_3" = "3", "position_4" = "4", "position_5" = "5"))+
+  scale_color_brewer(palette = "Set2") +
+  theme_minimal() + 
+  ylim(0.65, 1)
+
+
+setsize5_repVsUnrep <- (setsize5_unrepeated / setsize5_repeated) +
+  plot_layout(guides = "collect") +
+  plot_annotation(title = "Set Size 5: Accuracy by Serial Position")
+setsize5_repVsUnrep
+```
+
+
+```{r}
+grade5_diff2_unrepeated <-  logs_half_unrepeated_undupl %>%
+  filter(grade == 5 & difficulty == 2) %>% 
+  ggplot(aes(x = position, y = mean, group = factor(set_size), color = factor(set_size))) +
+  
+  # first plot the accuracy per serial position as lines and points
+  geom_line() +
+  geom_point() +
+  geom_errorbar(aes(ymin = mean - sd / sqrt(n), ymax = mean + sd / sqrt(n)), width = 0.1) + #SE 
+  facet_wrap(~ difficulty) +
+  labs(
+    title = "Grade - Unrepeated",
+    x = "Serial position",
+    y = "Averaged accuracy",
+    color = "Set Size") +
+  scale_x_discrete(labels = c("position_1" = "1", "position_2" = "2", "position_3" = "3", "position_4" = "4",
+                              "position_5" = "5", "position_6" = "6", "position_7" = "7", "position_8" = "8", "position_9" = "9"))+
+  scale_color_brewer(palette = "Set2") +
+  theme_minimal() +
+  ylim(0.70, 1)
+
+grade5_diff2_repeated <- logs_number_half_rep_dupl %>%
+  filter(grade == 5 & difficulty == 2) %>%
+  mutate(
+    position = factor(position, levels = paste0("position_", 1:15)),
+    set_size = factor(set_size, levels = sort(unique(set_size)))
+  ) %>%
+  ggplot(aes(x = position, y = mean, group = set_size, 
+             color = set_size)) +  # color already factor above
+  geom_line() +
+  geom_point() +
+  geom_errorbar(aes(ymin = mean - sd / sqrt(n), ymax = mean + sd / sqrt(n)), width = 0.1) +
+  facet_wrap(~ difficulty) +
+  labs(
+    title = "Grade 4 - repeated",
+    x = "Serial Position",
+    y = "Average Accuracy",
+    color = "Set Size"
+  ) +
+  scale_x_discrete(labels = setNames(as.character(1:15), paste0("position_", 1:15))) +
+  scale_color_viridis_d(option = "D", begin = 0.1, end = 0.9) +
+  theme_minimal() +
+  ylim(0.70, 1)
+
+grade5_diff2_repVsUnrep <- (grade5_diff2_unrepeated + grade5_diff2_repeated) +
+  plot_annotation(title = "Grade 5: Accuracy by Serial Position - Hard Diff")
+grade5_diff2_repVsUnrep
+```
+
+## Mole Game 
+
+
+```{r include=FALSE}
+#Filter logs for grade 3 to 8 
+# logs_40_grade <- logs_40 %>%
+#   filter(grade %in% c(1,2,3, 4, 5, 6, 7, 8))
+# 
+# 
+# #add set size and answer_option_clean to item dataset 
+# items$answer_options_clean <-
+#   sapply(regmatches(items$answer_options, gregexpr("[0-9]", items$answer_options)), paste, collapse = "")
+# 
+# items_40 <- items %>% 
+#   filter(domain_id == 40) %>% 
+#   mutate(item_id = id) %>% 
+#   mutate(set_size = nchar(answer_options_clean)/2) %>%
+#   select(item_id, set_size, answer_options_clean)
+# 
+# logs_40_setsize <- merge(logs_40_grade, items_40, by = "item_id")
+# 
+# 
+# #clean student's answers:
+# logs_40_setsize$answer_clean <- gsub("\\D", "", logs_40_setsize$answer)
+# 
+# #dateformat change
+# logs_mole<- logs_40_setsize %>%
+#   mutate(created_date = as.Date(created),
+#          year_month = format(created_date, "%Y-%m"))
+# 
+# #make duration variable 
+# duration_user <- logs_mole %>% 
+#   group_by(user_id) %>% 
+#   summarise(start = min(created_date), end= max(created_date)) %>% 
+#   mutate(duration = end -start) %>% 
+#   ungroup() 
+# 
+# duration_user <- duration_user %>% 
+#   select(user_id, duration)
+# 
+# logs_mole_duration <- merge(logs_mole, duration_user, by = "user_id")
+# 
+# 
+# range(logs_mole_duration$set_size) # set size between 2 to 9. no rows from logs_40_grade that correspond to items where set_size equals 1.
+# 
+# 
+# logs_mole <- logs_mole_duration%>%
+#   
+#   # separate the coordinates of the answer_options_clean and of the answer_clean into pairs of coordinates
+#   # example: (answer_options_clean = 110102) becomes (coordinates_pairs_answer_options_1 = 11) and (coordinates_pairs_answer_options_2 = 01) and (coordinates_pairs_answer_options_3 = 02)
+#   separate(answer_options_clean, into = paste0("coordinates_pairs_answer_options_", 1:9), sep = seq(2, 18, 2), remove = FALSE) %>%
+#   separate(answer_clean, into = paste0("coordinates_pairs_answer_", 1:9), sep = seq(2, 18, 2), remove = FALSE) %>%
+#   
+#   # there are many empty cells which I will transform to NAs
+#   mutate_if(is.character, list(~ na_if(., ""))) %>%
+#   
+#   # now look at accuracy per serial position
+#   mutate(
+#     position_1 = accuracy_position(coordinates_pairs_answer_options_1, coordinates_pairs_answer_1),
+#     position_2 = accuracy_position(coordinates_pairs_answer_options_2, coordinates_pairs_answer_2),
+#     position_3 = accuracy_position(coordinates_pairs_answer_options_3, coordinates_pairs_answer_3),
+#     position_4 = accuracy_position(coordinates_pairs_answer_options_4, coordinates_pairs_answer_4),
+#     position_5 = accuracy_position(coordinates_pairs_answer_options_5, coordinates_pairs_answer_5),
+#     position_6 = accuracy_position(coordinates_pairs_answer_options_6, coordinates_pairs_answer_6),
+#     position_7 = accuracy_position(coordinates_pairs_answer_options_7, coordinates_pairs_answer_7),
+#     position_8 = accuracy_position(coordinates_pairs_answer_options_8, coordinates_pairs_answer_8),
+#     position_9 = accuracy_position(coordinates_pairs_answer_options_9, coordinates_pairs_answer_9)) %>%
+#   
+#   # remove the separated coordinates of the answer_options_clean and of the answer_clean
+#   select(!starts_with("coordinates_pairs_answer"))
+# 
+# saveRDS(logs_mole, file="~/code_seyma/WMDevelopmentProject/logs_mole_accuracy.rds")
+```
+```{r include=FALSE}
+#set aside the half of the students and investigate. 
+
+# Select unique students with grade info
+students <- logs_mole_accuracy %>%
+  select(user_id, grade) %>%
+  distinct()
+
+set.seed(2012)
+# Sample 50% of students within each grade
+sampled_students <- students %>%
+  group_by(grade) %>%
+  sample_frac(0.5) %>%
+  ungroup()
+
+logs_half <- logs_mole_accuracy %>%
+  filter(user_id %in% sampled_students$user_id)
+
+
+logs_half_plt <- logs_half %>%
+  group_by(difficulty, set_size, grade) %>%
+  filter(n() > 50) %>%
+  group_by(difficulty, set_size, grade) %>%
+  summarise(
+    across(starts_with("position_"), list(mean = ~mean(.x, na.rm = TRUE),
+                                          sd = ~sd(.x, na.rm = TRUE))),
+    n = n(), 
+    .groups = "drop"
+  ) %>%
+  pivot_longer(
+    cols = -c(difficulty, set_size, grade, n),
+    names_to = c("position", ".value"),
+    names_pattern = "(.+?)_(mean|sd)$",
+    values_drop_na = TRUE
+  )
+```
+```{r}
+setsize4_dif1 <- logs_half_plt %>%
+  filter(set_size == 4 & difficulty == 1) %>% 
+  ggplot(aes(x = position, y = mean, group = factor(grade), color = factor(grade))) +
+  
+  # first plot the accuracy per serial position as lines and points
+  geom_line() +
+  geom_point() +
+  geom_errorbar(aes(ymin = mean - sd / sqrt(n), ymax = mean + sd / sqrt(n)), width = 0.1) + #SE 
+  #facet_wrap(~ difficulty) +
+  labs(
+    title = "Set size 4 All Items",
+    x = "Serial position",
+    y = "Averaged accuracy",
+    color = "Grade") +
+  scale_x_discrete(labels = c("position_1" = "1", "position_2" = "2", "position_3" = "3", "position_4" = "4"))+
+  scale_color_brewer(palette = "Set2") +
+  theme_minimal() +
+  ylim(0.75, 0.95)
+setsize4_dif1
+```
+
+
+```{r}
+setsize5 <- logs_half_plt %>%
+  filter(set_size == 5) %>% 
+  ggplot(aes(x = position, y = mean, group = factor(grade), color = factor(grade))) +
+  
+  # first plot the accuracy per serial position as lines and points
+  geom_line() +
+  geom_point() +
+  geom_errorbar(aes(ymin = mean - sd / sqrt(n), ymax = mean + sd / sqrt(n)), width = 0.1) + #SE 
+  facet_wrap(~ difficulty) +
+  labs(
+    title = "Set size 5 for different grades",
+    x = "Serial position",
+    y = "Averaged accuracy",
+    color = "Grade") +
+  scale_x_discrete(labels = c("position_1" = "1", "position_2" = "2", "position_3" = "3", "position_4" = "4", "position_5" = "5"))+
+  scale_color_brewer(palette = "Set2") +
+  theme_minimal()
+setsize5
+```
+
+
+```{r}
+grade4 <-  logs_half_plt %>%
+  filter(grade == 4) %>% 
+  ggplot(aes(x = position, y = mean, group = factor(set_size), color = factor(set_size))) +
+  
+  # first plot the accuracy per serial position as lines and points
+  geom_line() +
+  geom_point() +
+  geom_errorbar(aes(ymin = mean - sd / sqrt(n), ymax = mean + sd / sqrt(n)), width = 0.1) + #SE 
+  facet_wrap(~ difficulty) +
+  labs(
+    title = "Grade 4 Primacy and Recency Effect",
+    x = "Serial position",
+    y = "Averaged accuracy",
+    color = "Set Size") +
+  scale_x_discrete(labels = c("position_1" = "1", "position_2" = "2", "position_3" = "3", "position_4" = "4",
+                              "position_5" = "5", "position_6" = "6", "position_7" = "7", "position_8" = "8", "position_9" = "9"))+
+  scale_color_brewer(palette = "Set2") +
+  theme_minimal()
+grade4
+```
+
+### Primacy and Recency effect - ungrouped items (structure)
+
+```{r include=FALSE}
+#set aside the half of the students and investigate. 
+
+# Select unique students with grade info
+students <- logs_unstructured_prop_accuracy %>%
+  select(user_id, grade) %>%
+  distinct()
+
+set.seed(2012)
+# Sample 50% of students within each grade
+sampled_students <- students %>%
+  group_by(grade) %>%
+  sample_frac(0.5) %>%
+  ungroup()
+
+logs_unstructured_prop_accuracy_half <- logs_unstructured_prop_accuracy %>%
+  filter(user_id %in% sampled_students$user_id)
+
+table(logs_unstructured_prop_accuracy_half$set_size, logs_unstructured_prop_accuracy_half$grade)
+
+
+logs_unstructured_prop_accuracy_half_plt <- logs_unstructured_prop_accuracy_half %>%
+  group_by(difficulty, set_size, grade) %>%
+  filter(n() > 50) %>%
+  group_by(difficulty, set_size, grade) %>%
+  summarise(
+    across(starts_with("position_"), list(mean = ~mean(.x, na.rm = TRUE),
+                                          sd = ~sd(.x, na.rm = TRUE))),
+    n = n(), 
+    .groups = "drop"
+  ) %>%
+  pivot_longer(
+    cols = -c(difficulty, set_size, grade, n),
+    names_to = c("position", ".value"),
+    names_pattern = "(.+?)_(mean|sd)$",
+    values_drop_na = TRUE
+  )
+```
+
+
+```{r}
+setsize4_dif1_unstr <- logs_unstructured_prop_accuracy_half_plt %>%
+  filter(set_size == 4 & difficulty == 1) %>% 
+  ggplot(aes(x = position, y = mean, group = factor(grade), color = factor(grade))) +
+  
+  # first plot the accuracy per serial position as lines and points
+  geom_line() +
+  geom_point() +
+  geom_errorbar(aes(ymin = mean - sd / sqrt(n), ymax = mean + sd / sqrt(n)), width = 0.1) + #SE 
+  #facet_wrap(~ difficulty) +
+  labs(
+    title = "Set size 4 Unstructured",
+    x = "Serial position",
+    y = "Averaged accuracy",
+    color = "Grade") +
+  scale_x_discrete(labels = c("position_1" = "1", "position_2" = "2", "position_3" = "3", "position_4" = "4"))+
+  scale_color_brewer(palette = "Set2") +
+  theme_minimal() +
+  ylim(0.75, 0.95)
+
+setsize4_strVsUnstr <- (setsize4_dif1 + setsize4_dif1_unstr) +
+  plot_layout(guides = "collect") +
+  plot_annotation(title = "Set Size 4: Accuracy by Serial Position - Medium Difficulty")
+setsize4_strVsUnstr
+```
+
+
+```{r}
+setsize5 <- logs_unstructured_prop_accuracy_half_plt %>%
+  filter(set_size == 5) %>% 
+  ggplot(aes(x = position, y = mean, group = factor(grade), color = factor(grade))) +
+  
+  # first plot the accuracy per serial position as lines and points
+  geom_line() +
+  geom_point() +
+  geom_errorbar(aes(ymin = mean - sd / sqrt(n), ymax = mean + sd / sqrt(n)), width = 0.1) + #SE 
+  facet_wrap(~ difficulty) +
+  labs(
+    title = "Set size 5 for different grades - Unstrc",
+    x = "Serial position",
+    y = "Averaged accuracy",
+    color = "Grade") +
+  scale_x_discrete(labels = c("position_1" = "1", "position_2" = "2", "position_3" = "3", "position_4" = "4", "position_5" = "5"))+
+  scale_color_brewer(palette = "Set2") +
+  theme_minimal()
+setsize5
+```
+
+
+```{r}
+grade4 <-  logs_unstructured_prop_accuracy_half_plt %>%
+  filter(grade == 4) %>% 
+  ggplot(aes(x = position, y = mean, group = factor(set_size), color = factor(set_size))) +
+  
+  # first plot the accuracy per serial position as lines and points
+  geom_line() +
+  geom_point() +
+  geom_errorbar(aes(ymin = mean - sd / sqrt(n), ymax = mean + sd / sqrt(n)), width = 0.1) + #SE 
+  facet_wrap(~ difficulty) +
+  labs(
+    title = "Grade 4 Primacy and Recency Effect - Unstruct",
+    x = "Serial position",
+    y = "Averaged accuracy",
+    color = "Set Size") +
+  scale_x_discrete(labels = c("position_1" = "1", "position_2" = "2", "position_3" = "3", "position_4" = "4",
+                              "position_5" = "5", "position_6" = "6", "position_7" = "7", "position_8" = "8", "position_9" = "9"))+
+  scale_color_brewer(palette = "Set2") +
+  theme_minimal()
+grade4
+```
+
+# Longitudinal Data
+
+## Mole Game
+
+How does primacy and recency changes for some students?
+
+```{r}
+#Select students that played the game at grade 4 and then grade 7 at least 20 items 
+logs_47 <- logs_half %>%
+  filter(grade %in% c(4, 7))
+
+user_counts <- logs_47 %>%
+  group_by(user_id, grade) %>%
+  summarise(n_items = n(), .groups = "drop")
+
+users_20_each_grade <- user_counts %>%
+  filter(n_items >= 20) %>%
+  group_by(user_id) %>%
+  filter(n() == 2) %>%  # both grade 4 and 7 must be present
+  pull(user_id) %>%
+  unique()
+
+logs_grade7and4_min20 <- logs_47 %>%
+  filter(user_id %in% users_20_each_grade)
+
+length(unique(logs_grade7and4_min20$user_id))  #3945 students whithout items restrictions and with it's  1165
+
+logs_grade7and4_plt <- logs_grade7and4_min20 %>%
+  group_by(difficulty, set_size, grade) %>%
+  group_by(difficulty, set_size, grade) %>%
+  filter(n() > 50) %>% #at least 50 observation which makes the graph weird but necessary
+  summarise(
+    across(starts_with("position_"), list(mean = ~mean(.x, na.rm = TRUE),
+                                          sd = ~sd(.x, na.rm = TRUE))),
+    n = n(), 
+    .groups = "drop"
+  ) %>%
+  pivot_longer(
+    cols = -c(difficulty, set_size, grade, n),
+    names_to = c("position", ".value"),
+    names_pattern = "(.+?)_(mean|sd)$",
+    values_drop_na = TRUE
+  )
+```
+
+
+```{r}
+grade7and4_dif1_plt <- logs_grade7and4_plt %>%
+  filter(difficulty == 1) %>% 
+  ggplot(aes(x = position, y = mean, group = factor(grade), color = factor(grade))) +
+  # first plot the accuracy per serial position as lines and points
+  geom_line() +
+  geom_point() +
+  geom_errorbar(aes(ymin = mean - sd / sqrt(n), ymax = mean + sd / sqrt(n)), width = 0.1) + #SE 
+  facet_wrap(~ set_size) +
+  labs(
+    title = "Students played in grades 4 and 7 at least 20 items
+    - at least 50 observation in every diff-setsize-grade level -
+    Medium Difficulty",
+    x = "Serial position",
+    y = "Averaged accuracy",
+    color = "Grade") +
+  scale_x_discrete(labels = c("position_1" = "1", "position_2" = "2", "position_3" = "3", "position_4" = "4", "position_5" = "5",
+                              "position_6" = "6", "position_7" = "7", "position_8" = "8", "position_9" = "9"))+
+  scale_color_brewer(palette = "Set2") +
+  theme_minimal()
+
+grade7and4_dif2_plt <- logs_grade7and4_plt %>%
+  filter(difficulty == 2) %>% 
+  ggplot(aes(x = position, y = mean, group = factor(grade), color = factor(grade))) +
+  # first plot the accuracy per serial position as lines and points
+  geom_line() +
+  geom_point() +
+  geom_errorbar(aes(ymin = mean - sd / sqrt(n), ymax = mean + sd / sqrt(n)), width = 0.1) + #SE 
+  facet_wrap(~ set_size) +
+  labs(
+    title = "Students played in grades 4 and 7 at least 20 times
+    -  at least 50 observation in total-
+    Hard Difficulty",
+    x = "Serial position",
+    y = "Averaged accuracy",
+    color = "Grade") +
+  scale_x_discrete(labels = c("position_1" = "1", "position_2" = "2", "position_3" = "3", "position_4" = "4", "position_5" = "5",
+                              "position_6" = "6", "position_7" = "7", "position_8" = "8", "position_9" = "9"))+
+  scale_color_brewer(palette = "Set2") +
+  theme_minimal()
+grade7and4_dif1_plt
+grade7and4_dif2_plt
+```
+
+### Ungrouped  
+
+```{r}
+##unstructured 
+
+#Select students that played the game at grade 4 and then grade 7 at least 20 items 
+logs_47_unstructured <- logs_unstructured_prop_accuracy_half %>%
+  filter(grade %in% c(4, 7))
+
+user_counts <- logs_47_unstructured %>%
+  group_by(user_id, grade) %>%
+  summarise(n_items = n(), .groups = "drop")
+
+users_10_each_grade <- user_counts %>%
+  filter(n_items >= 10) %>%
+  group_by(user_id) %>%
+  filter(n() == 2) %>%  # both grade 4 and 7 must be present
+  pull(user_id) %>%
+  unique()
+
+logs_grade7and4_min10_unstructured <- logs_47_unstructured %>%
+  filter(user_id %in% users_10_each_grade)
+
+length(unique(logs_grade7and4_min10_unstructured$user_id))  #50 students without items restrictions and with it's  1165
+
+
+logs_grade7and4_min10_unstructured_plt <- logs_grade7and4_min10_unstructured %>%
+  group_by(difficulty, set_size, grade) %>%
+  group_by(difficulty, set_size, grade) %>%
+  filter(n() > 50) %>% #at least 50 observation which makes the graph weird but necessary
+  summarise(
+    across(starts_with("position_"), list(mean = ~mean(.x, na.rm = TRUE),
+                                          sd = ~sd(.x, na.rm = TRUE))),
+    n = n(), 
+    .groups = "drop"
+  ) %>%
+  pivot_longer(
+    cols = -c(difficulty, set_size, grade, n),
+    names_to = c("position", ".value"),
+    names_pattern = "(.+?)_(mean|sd)$",
+    values_drop_na = TRUE
+  )
+```
+
+
+```{r}
+grade7and4_dif1_plt <- logs_grade7and4_min10_unstructured_plt %>%
+  filter(difficulty == 1) %>% 
+  ggplot(aes(x = position, y = mean, group = factor(grade), color = factor(grade))) +
+  # first plot the accuracy per serial position as lines and points
+  geom_line() +
+  geom_point() +
+  geom_errorbar(aes(ymin = mean - sd / sqrt(n), ymax = mean + sd / sqrt(n)), width = 0.1) + #SE 
+  facet_wrap(~ set_size) +
+  labs(
+    title = "Students played in grades 4 and 7 at least 10 items
+    - at least 50 observation in every diff-setsize-grade level -
+    Medium Difficulty- Unstr",
+    x = "Serial position",
+    y = "Averaged accuracy",
+    color = "Grade") +
+  scale_x_discrete(labels = c("position_1" = "1", "position_2" = "2", "position_3" = "3", "position_4" = "4", "position_5" = "5",
+                              "position_6" = "6", "position_7" = "7", "position_8" = "8", "position_9" = "9"))+
+  scale_color_brewer(palette = "Set2") +
+  theme_minimal()
+grade7and4_dif1_plt
+```
+
+
+```{r}
+grade7and4_dif2_plt <- logs_grade7and4_min10_unstructured_plt %>%
+  filter(difficulty == 2) %>% 
+  ggplot(aes(x = position, y = mean, group = factor(grade), color = factor(grade))) +
+  # first plot the accuracy per serial position as lines and points
+  geom_line() +
+  geom_point() +
+  geom_errorbar(aes(ymin = mean - sd / sqrt(n), ymax = mean + sd / sqrt(n)), width = 0.1) + #SE 
+  facet_wrap(~ set_size) +
+  labs(
+    title = "Students played in grades 4 and 7 at least 10 times
+    -  at least 50 observation in total-
+    Hard Difficulty - Unstructured",
+    x = "Serial position",
+    y = "Averaged accuracy",
+    color = "Grade") +
+  scale_x_discrete(labels = c("position_1" = "1", "position_2" = "2", "position_3" = "3", "position_4" = "4", "position_5" = "5",
+                              "position_6" = "6", "position_7" = "7", "position_8" = "8", "position_9" = "9"))+
+  scale_color_brewer(palette = "Set2") +
+  theme_minimal()
+grade7and4_dif2_plt
+```
+
+
+
