@@ -285,7 +285,7 @@ logs_unstructured_prop_accuracy <- logs_unstructured_prop %>%
   # remove the separated coordinates of the answer_options_clean and of the answer_clean
   select(!starts_with("coordinates_pairs_answer"))
 
-saveRDS(logs_unstructured_prop_accuracy, file="~/code_seyma/WMDevelopmentProject/logs_unstructured_prop_accuracy.rds")
+#saveRDS(logs_unstructured_prop_accuracy, file="~/code_seyma/WMDevelopmentProject/logs_unstructured_prop_accuracy.rds")
 
 ```
 
