@@ -1,0 +1,664 @@
+---
+title: "WM_TimeSeries_CapacityDevelopment_v0"
+output: 
+    github_document:
+    html_preview: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+```{r include=FALSE}
+library(lubridate)
+library(dplyr)
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+
+load("~/research-collaboration/data-ro/data-users-40-66-2023-10-31.Rdata")
+load("~/research-collaboration/data-ro/data-logs_66-2023-10-31.Rdata")
+load("~/research-collaboration/data-ro/data-logs_40-2023-10-31.Rdata")
+load("~/code_seyma/WMBenchmark/data/items.Rdata")
+```
+
+# Number Game
+
+```{r include=FALSE}
+logs_66$year <- format(as.Date(logs_66$created), "%Y")
+
+logs_66_grade <- logs_66 %>%
+  filter(grade %in% c(3, 4, 5, 6, 7, 8)) %>%
+  mutate(userid_year = paste0(user_id, "-", year)) #hack for easier filtering
+
+logs_66_grade <- logs_66_grade %>%
+  mutate(created_date = as.Date(created),
+         quarter = paste(year(created_date), quarter(created_date), sep = "-Q"))
+
+#add set size 
+items$answer_options_clean <-
+   sapply(regmatches(items$answer_options, gregexpr("[0-9]", items$answer_options)), paste, collapse = "")
+
+items_66 <- items %>% 
+  filter(domain_id == 66) %>% 
+  mutate(item_id = id) %>% 
+  mutate(set_size = nchar(answer_options_clean)) %>% 
+  select(item_id, set_size)
+
+merged_logs <- merge(logs_66_grade, items_66, by = "item_id")
+```
+
+We tried a few student selection options. 
+
+## Selection 1 
+
+Select students:
+  - record in quarters in which they played more than 4 sessions 
+  - select the *correct answers*
+  - that have at least 8 quarters for 4 years (half of it)
+
+```{r include=FALSE}
+##### Student selection - Number ######
+
+#Selection1#
+
+## Select students record in quarters in which played more than 4 sessions 
+logs_quarter <- merged_logs %>%
+  filter(correct_answered == "1") %>%  #select the correct answers 
+  group_by(user_id, quarter) %>%
+  filter(n() >= 40) 
+
+## Select students that have at least 8 quarters for 4 years (half of it)
+students_with_8_quarters <- logs_quarter %>% 
+  group_by(user_id) %>%
+  summarise(unique_quarters = n_distinct(quarter)) %>%
+  filter(unique_quarters >= 8) %>%
+  select(user_id)
+
+## Merge logs and students so that this data includes records of students that played at least 4 sessions in at least 8 quarters
+logs_quarter <- logs_quarter %>% 
+  filter(user_id %in% students_with_8_quarters$user_id)
+```
+
+```{r}
+correct_set_size_development <- logs_quarter %>% 
+  group_by(user_id, quarter) %>% #calculate max and mean set size for the quarters for students
+  summarise(mean_set_size = mean(set_size, na.rm = TRUE), 
+            median_set_size = median(set_size, na.rm = TRUE),
+            max_set_size = max(set_size, na.rm = TRUE),
+            min_set_size = min(set_size, na.rm = TRUE),
+            plays = n()) %>%
+  ungroup()  
+
+length(unique(correct_set_size_development$user_id))
+```
+
+
+```{r}
+# Plot trends for the sample of students
+ggplot(correct_set_size_development, aes(x = quarter, y = mean_set_size, group = user_id, color = as.factor(user_id))) +
+  geom_line() +
+  geom_point() +
+  geom_text(aes(label = plays), vjust = -1, hjust = 1.5, size=2) +  # play counts
+  labs(title = "Mean Set Size Over Time for Sample Students in Number game 
+       in which they played 40 correct items every Q for at least 8 Q",
+       x = "Quarter",
+       y = "Mean Set Size",
+       color = "User ID") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+ggplot(correct_set_size_development, aes(x = quarter, y = max_set_size, group = user_id, color = as.factor(user_id))) +
+  geom_line() +
+  geom_point() +
+  geom_text(aes(label = plays), vjust = -1, hjust = 1.5, size=2) + 
+  labs(title = "Max Set Size Over Time for Sample Students in Number game 
+       in which they played 40 correct items every Q for at least 8 Q",
+       x = "Quarter",
+       y = "Mean Set Size",
+       color = "User ID") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+## Selection 2
+
+Select students:
+  - **filter 2021-Q3 and 2023-Q2 (2 years) to filter out the Covid effect**
+  - record in quarters in which they played more than 4 sessions 
+  - select the *correct answers*
+  - that have at least 6 quarters for 2
+  
+```{r include=FALSE}
+#Selection2#
+
+#To exclude the covid effect and narrow down the time window
+# filter 2021-Q3 and 2023-Q2 (2 years)
+
+## Select students record in quarters in which played more than 4 sessions 
+logs_quarter_2years <- merged_logs %>%
+  filter(quarter %in% c("2021-Q3", "2021-Q4", "2022-Q1", "2022-Q2", "2022-Q3", "2022-Q4", "2023-Q1", "202-Q2")) %>% #right times
+  filter(correct_answered == "1") %>%  #select the correct answers 
+  group_by(user_id, quarter) %>%
+  filter(n() >= 40) 
+
+## Select students that have at least 6 quarters for 2 
+students_with_6_quarters_2years <- logs_quarter_2years %>% 
+  group_by(user_id) %>%
+  summarise(unique_quarters = n_distinct(quarter)) %>%
+  filter(unique_quarters >= 6) %>%
+  select(user_id)
+
+
+## Merge logs and students so that this data includes records of students that played at least 4 sessions in at least 8 quarters
+logs_quarter_2years <- logs_quarter_2years %>% 
+  filter(user_id %in% students_with_6_quarters_2years$user_id) 
+
+
+correct_set_size_development_2years <- logs_quarter_2years %>% 
+  group_by(user_id, quarter) %>% #calculate max and mean set size for the quarters for students
+  summarise(mean_set_size = mean(set_size, na.rm = TRUE), 
+            median_set_size = median(set_size, na.rm = TRUE),
+            max_set_size = max(set_size, na.rm = TRUE),
+            min_set_size = min(set_size, na.rm = TRUE),
+            plays = n()) %>%
+  ungroup()
+```
+
+
+```{r}
+length(unique(correct_set_size_development_2years$user_id)) 
+```
+
+
+## Selection 3
+
+Select students:
+  - filter 2021-Q3 and 2023-Q2 (2 years)
+  - look at **monthly** at least 1 session
+  - select the correct answers
+  - that have at least 12 month for 2 years
+  
+```{r}
+#Selection3#
+
+#To exclude the covid effect and narrow down the time window
+# filter 2021-Q3 and 2023-Q2 (2 years)
+#look at monthly
+
+## Select students record in months in which played more than 1 session 
+logs_quarter_2years_mon <- merged_logs %>%
+  mutate(month = floor_date(created_date, "month")) %>%
+  filter(quarter %in% c("2021-Q3", "2021-Q4", "2022-Q1", "2022-Q2", "2022-Q3", "2022-Q4", "2023-Q1", "202-Q2")) %>% #right times
+  filter(correct_answered == "1") %>%  #select the correct answers 
+  group_by(user_id, month) %>%
+  filter(n() >= 10) 
+
+## Select students that have at least 12 month for 2 years (half of it)
+students_with_12_mon_2years <- logs_quarter_2years_mon %>% 
+  group_by(user_id) %>%
+  summarise(unique_month = n_distinct(month)) %>%
+  filter(unique_month >= 12) %>%
+  select(user_id)
+
+
+## Merge logs and students so that this data includes records of students that played at least 4 sessions in at least 8 quarters
+logs_quarter_2years_mon <- logs_quarter_2years_mon %>% 
+  filter(user_id %in% students_with_12_mon_2years$user_id) 
+
+
+correct_set_size_development_2years_mon <- logs_quarter_2years_mon %>% 
+  group_by(user_id, month) %>% #calculate max and mean set size for the quarters for students
+  summarise(mean_set_size = mean(set_size, na.rm = TRUE), 
+            median_set_size = median(set_size, na.rm = TRUE),
+            max_set_size = max(set_size, na.rm = TRUE),
+            min_set_size = min(set_size, na.rm = TRUE),
+            plays = n()) %>%
+  ungroup()
+```
+
+
+```{r}
+length(unique(correct_set_size_development_2years_mon$user_id)) #4 ? WOW
+```
+
+
+```{r}
+# Plot trends for the sample of students
+ggplot(correct_set_size_development_2years_mon, aes(x = month, y = mean_set_size, group = user_id, color = as.factor(user_id))) +
+  geom_line() +
+  geom_point() +
+  geom_text(aes(label = plays), vjust = -1, hjust = 1.5, size=2) +  # Add play counts as labels
+  labs(title = "Mean Set Size Over Time for Sample Students in Number game 
+       in which they played 10 correct items every month for at least 12 months in 2021-23",
+       x = "Month",
+       y = "Mean Set Size",
+       color = "User ID") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+ggplot(correct_set_size_development_2years_mon, aes(x = month, y = max_set_size, group = user_id, color = as.factor(user_id))) +
+  geom_line() +
+  geom_point() +
+  geom_text(aes(label = plays), vjust = -1, hjust = 1.5, size=2) +  # Add play counts as labels
+  labs(title = "Max Set Size Over Time for Sample Students in Number game 
+       in which they played 10 correct items every month for at least 12 months in 2021-23",
+       x = "Month",
+       y = "Mean Set Size",
+       color = "User ID") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+## Best Students 
+
+We select the students who improve the most among the students who :
+  - record in quarters in which they played more than 4 sessions 
+  - select the *correct answers*
+  - that have at least 8 quarters for 4 years (half of it)
+
+```{r}
+## Best Students - Number ######
+# Calculate improvement for each student
+student_improvement <- correct_set_size_development %>%
+  group_by(user_id) %>%
+  summarise(
+    initial_set_size = first(mean_set_size),
+    final_set_size = last(mean_set_size),
+    improvement = final_set_size - initial_set_size
+  ) %>%
+  arrange(desc(improvement)) # Sort by improvement
+
+# Select top 10 students with the most improvement
+top_students <- student_improvement %>%
+  top_n(10, improvement) %>%
+  pull(user_id)
+
+# Filter the data to include only the top 10 most improved students
+top_student_data <- correct_set_size_development %>%
+  filter(user_id %in% top_students)
+```
+
+
+```{r}
+# Plot mean set size changes over time for the most improved students
+ggplot(top_student_data, aes(x = quarter, y = mean_set_size, group = user_id, color = as.factor(user_id))) +
+  geom_line() +
+  geom_point() +
+  labs(title = "Mean Set Size Development for Top Improved Students",
+       x = "Quarter",
+       y = "Mean Set Size",
+       color = "User ID") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+# Mole Game 
+
+```{r include=FALSE}
+logs_40$year <- format(as.Date(logs_40$created), "%Y")
+
+
+logs_40_grade <- logs_40 %>%
+  filter(grade %in% c(3, 4, 5, 6, 7, 8)) 
+
+logs_40_grade <- logs_40_grade %>%
+  mutate(created_date = as.Date(created),
+         quarter = paste(year(created_date), quarter(created_date), sep = "-Q"))
+
+
+#add set size 
+items$answer_options_clean <-
+  sapply(regmatches(items$answer_options, gregexpr("[0-9]", items$answer_options)), paste, collapse = "")
+
+items_40 <- items %>% 
+  filter(domain_id == 40) %>% 
+  mutate(item_id = id) %>% 
+  mutate(set_size = nchar(answer_options_clean)/2) %>% 
+  select(item_id, set_size)
+
+
+merged_logs40 <- merge(logs_40_grade, items_40, by = "item_id")
+
+```
+
+
+##  Selection 1
+
+Select students:
+  - in quarters in which played more than 4 sessions  
+  - select the *correct answers*
+  - that have at least 8 quarters for 4 years (half of it)
+
+```{r include=FALSE}
+#Selection1#
+## Select students record in quarters in which played more than 4 sessions 
+logs_quarter40 <- merged_logs40 %>%
+  filter(correct_answered == "1") %>%  #select the correct answers 
+  group_by(user_id, quarter) %>%
+  filter(n() >= 40) 
+
+## Select students that have at least 8 quarters for 4 years (half of it)
+students_with_8_quarters40 <- logs_quarter40 %>% 
+  group_by(user_id) %>%
+  summarise(unique_quarters = n_distinct(quarter)) %>%
+  filter(unique_quarters >= 8) %>%
+  select(user_id)
+
+## Merge logs and students so that this data includes records of students that played at least 4 sessions in at least 8 quarters
+logs_quarter40 <- logs_quarter40 %>% 
+  filter(user_id %in% students_with_8_quarters40$user_id)
+
+correct_set_size_development40 <- logs_quarter40 %>% 
+  group_by(user_id, quarter) %>% #calculate max and mean set size for the quarters for students
+  summarise(mean_set_size = mean(set_size, na.rm = TRUE), 
+            median_set_size = median(set_size, na.rm = TRUE),
+            max_set_size = max(set_size, na.rm = TRUE),
+            mean_item_rating = max(item_rating, na.rm = TRUE),
+            max_rating = max(new_user_domain_rating, na.rm = TRUE),
+            min_set_size = min(set_size, na.rm = TRUE),
+            plays = n()) %>%
+  ungroup()
+```
+
+```{r}
+length(unique(correct_set_size_development40$user_id))
+```
+
+
+```{r}
+# Plot trends for the sample of students
+ggplot(correct_set_size_development40, aes(x = quarter, y = mean_set_size, group = user_id, color = as.factor(user_id))) +
+  geom_line() +
+  geom_point() +
+  labs(title = "Mean Set Size Over Time for Sample Students in Mole Game
+       played at least 40 correct items at least 8 quarter",
+       x = "Quarter",
+       y = "Mean Set Size",
+       color = "User ID") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+ 
+ggplot(correct_set_size_development40, aes(x = quarter, y = max_set_size, group = user_id, color = as.factor(user_id))) +
+  geom_line() +
+  geom_point() +
+  geom_text(aes(label = plays), vjust = -1, hjust = 1.5, size=2) +  # Add play counts as labels
+  labs(title = "Max Set Size Over Time for Sample Students in Mole Game
+       played at least 40 correct items at least 8 quarter",
+       x = "Quarter",
+       y = "Mean Set Size",
+       color = "User ID") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+```{r}
+#Check the ability rating vs set sizes how they change 
+correct_set_size_development40 %>% 
+  filter(user_id == "1103861746") %>% 
+  mutate(max_user_rating = max_rating/10) %>% 
+  mutate(mean_item_rating = mean_item_rating/10) %>% 
+  pivot_longer(
+    cols = c(max_set_size, max_user_rating, mean_item_rating),
+    names_to = "type",
+    values_to = "score"
+  ) %>%
+  select(user_id,quarter, type, score) %>%
+  ggplot(aes(x = quarter, y = score, color = type)) +
+  geom_line() +
+  geom_point() +
+  labs(title = "Max Rating Over Time for Sample Students in Mole Game
+       played at least 40 correct items at least 8 quarter",
+       x = "Quarter",
+       y = "Type",
+       color = "User ID") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+## Selection 2
+
+Select students:
+  - **filter 2021-Q3 and 2023-Q2 (2 years) to filter out the Covid effect**
+  - record in quarters in which they played more than 4 sessions 
+  - select the *correct answers*
+  - that have at least 6 quarters for 2
+
+```{r include=FALSE}
+#Selection2#
+
+#To exclude the covid effect and narrow down the time window
+# filter 2021-Q3 and 2023-Q2 (2 years)
+
+## Select students record in quarters in which played more than 4 sessions 
+logs_quarter40_2years <- merged_logs40 %>%
+  filter(quarter %in% c("2021-Q3", "2021-Q4", "2022-Q1", "2022-Q2", "2022-Q3", "2022-Q4", "2023-Q1", "202-Q2")) %>% #right times
+  filter(correct_answered == "1") %>%  #select the correct answers 
+  group_by(user_id, quarter) %>%
+  filter(n() >= 40) 
+
+## Select students that have at least 8 quarters for 4 years (half of it)
+students_with_6_quarters_2years40 <- logs_quarter40_2years %>% 
+  group_by(user_id) %>%
+  summarise(unique_quarters = n_distinct(quarter)) %>%
+  filter(unique_quarters >= 6) %>%
+  select(user_id)
+
+
+## Merge logs and students so that this data includes records of students that played at least 4 sessions in at least 8 quarters
+logs_quarter40_2years <- logs_quarter40_2years %>% 
+  filter(user_id %in% students_with_6_quarters_2years40$user_id) 
+
+
+correct_set_size_development40_2years <- logs_quarter40_2years %>% 
+  group_by(user_id, quarter) %>% #calculate max and mean set size for the quarters for students
+  summarise(mean_set_size = mean(set_size, na.rm = TRUE), 
+            median_set_size = median(set_size, na.rm = TRUE),
+            max_set_size = max(set_size, na.rm = TRUE),
+            min_set_size = min(set_size, na.rm = TRUE),
+            plays = n()) %>%
+  ungroup()
+```
+
+
+```{r}
+length(unique(correct_set_size_development40_2years$user_id))
+```
+
+
+```{r}
+# Plot trends for the sample of students
+ggplot(correct_set_size_development40_2years, aes(x = quarter, y = mean_set_size, group = user_id, color = as.factor(user_id))) +
+  geom_line() +
+  geom_point() +
+  geom_text(aes(label = plays), vjust = -1, hjust = 1.5, size=2) +  # Add play counts as labels
+  labs(title = "Mean Set Size Over Time for Sample Students in Mole game 
+       in which they played 40 correct items every Q for at least 6 Q in 2021-23",
+       x = "Quarter",
+       y = "Mean Set Size",
+       color = "User ID") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+ggplot(correct_set_size_development40_2years, aes(x = quarter, y = max_set_size, group = user_id, color = as.factor(user_id))) +
+  geom_line() +
+  geom_point() +
+  geom_text(aes(label = plays), vjust = -1, hjust = 1.5, size=2) +  # Add play counts as labels
+  labs(title = "Max Set Size Over Time for Sample Students in Mole game 
+       in which they played 40 correct items every Q for at least 6 Q in 2021-23",
+       x = "Quarter",
+       y = "Mean Set Size",
+       color = "User ID") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+```
+
+## Selection 3
+
+Select students:
+  - filter 2021-Q3 and 2023-Q2 (2 years)
+  - look at **monthly** at least 1 session
+  - select the correct answers
+  - that have at least 12 month for 2 years
+
+```{r}
+#Selection3#
+
+#To exclude the covid effect and narrow down the time window
+# filter 2021-Q3 and 2023-Q2 (2 years)
+
+## Select students record in quarters in which played more than 4 sessions 
+logs_quarter40_2years_mon <- merged_logs40 %>%
+  mutate(month = floor_date(created_date, "month")) %>%
+  filter(quarter %in% c("2021-Q3", "2021-Q4", "2022-Q1", "2022-Q2", "2022-Q3", "2022-Q4", "2023-Q1", "202-Q2")) %>% #right times
+  filter(correct_answered == "1") %>%  #select the correct answers 
+  group_by(user_id, month) %>%
+  filter(n() >= 10) 
+
+
+## Select students that have at least 8 quarters for 4 years (half of it)
+students_with_12_quarters_2years40_mon <- logs_quarter40_2years_mon %>% 
+  group_by(user_id) %>%
+  summarise(unique_mon = n_distinct(month)) %>%
+  filter(unique_mon >= 12) %>%
+  select(user_id)
+
+
+## Merge logs and students so that this data includes records of students that played at least 4 sessions in at least 8 quarters
+logs_quarter40_2years_mon <- logs_quarter40_2years_mon %>% 
+  filter(user_id %in% students_with_12_quarters_2years40_mon$user_id) 
+
+
+correct_set_size_development40_2years_mon <- logs_quarter40_2years_mon %>% 
+  group_by(user_id, month) %>% #calculate max and mean set size for the quarters for students
+  summarise(mean_set_size = mean(set_size, na.rm = TRUE), 
+            median_set_size = median(set_size, na.rm = TRUE),
+            max_set_size = max(set_size, na.rm = TRUE),
+            min_set_size = min(set_size, na.rm = TRUE),
+            plays = n()) %>%
+  ungroup()
+```
+
+
+```{r}
+length(unique(correct_set_size_development40_2years_mon$user_id))
+```
+
+
+```{r}
+# Plot trends for the sample of students
+ggplot(correct_set_size_development40_2years_mon, aes(x = month, y = mean_set_size, group = user_id, color = as.factor(user_id))) +
+  geom_line() +
+  geom_point() +
+  geom_text(aes(label = plays), vjust = -1, hjust = 1.5, size=2) +  # Add play counts as labels
+  labs(title = "Mean Set Size Over Time for Sample Students in Mole game 
+       in which they played 10 correct items every month for at least 12 M in 2021-23",
+       x = "Quarter",
+       y = "Mean Set Size",
+       color = "User ID") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+ggplot(correct_set_size_development40_2years_mon, aes(x = month, y = max_set_size, group = user_id, color = as.factor(user_id))) +
+  geom_line() +
+  geom_point() +
+  geom_text(aes(label = plays), vjust = -1, hjust = 1.5, size=2) +  # Add play counts as labels
+  labs(title = "Max Set Size Over Time for Sample Students in Mole game 
+       in which they played 10 correct items every month for at least 12 M in 2021-23",
+       x = "Quarter",
+       y = "Mean Set Size",
+       color = "User ID") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+```
+
+## Grouping 
+
+```{r include=FALSE}
+items_mole_trimmed_v2  <- readRDS("~/code_seyma/WMBenchmark/data/items_mole_trimmed_v2.rds")
+
+```
+
+```{r}
+logs_quarter40_2years_mon_char <-logs_quarter40_2years_mon %>% 
+  left_join(items_mole_trimmed_v2, by = "item_id")
+
+logs_quarter40_2years_mon_char <- logs_quarter40_2years_mon_char %>%
+  mutate(set_size2 = ifelse(structured_count >= 1, set_size.x - 1, set_size.x))
+
+correct_set_size_development40_2years_mon_v3 <- logs_quarter40_2years_mon_char %>% 
+  group_by(user_id.x, month) %>% #calculate max and mean set size for the quarters for students
+  summarise(mean_set_size = mean(set_size2, na.rm = TRUE), 
+            max_set_size = max(set_size2, na.rm = TRUE),
+            min_set_size = min(set_size2, na.rm = TRUE),
+            plays = n()) %>%
+  ungroup()  
+set.seed(100)
+sample_students_40_monthv2 <- correct_set_size_development40_2years_mon_v3 %>%
+  filter(user_id.x %in% sample(unique(user_id.x), 5))
+
+ggplot(sample_students_40_monthv2, aes(x = month, y = max_set_size, group = user_id.x, color = as.factor(user_id.x))) +
+  geom_line() +
+  geom_point() +
+  geom_text(aes(label = plays), vjust = -1, hjust = 1.5, size = 2) +
+  labs(
+    title = "Max Set Size Over Time for Sample Students in Mole game. 
+    Students played 10 items every month 
+    for at least 8 M in 2021-23.
+    Structured item -1 Set size",
+    x = "Month",
+    y = "Max Set Size",
+    color = "User ID"
+  ) +
+  scale_x_date(date_breaks = "1 month", date_labels = "%b\n%Y") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+## Best Students
+
+We select the students that improved the most with the condition of: 
+
+students with
+  - in quarters in which played more than 4 sessions  
+  - select the *correct answers*
+  - that have at least 8 quarters for 4 years (half of it)
+
+```{r}
+######## Best Students - mole ########
+# Calculate improvement for each student
+student_improvement40 <- correct_set_size_development40 %>%
+  group_by(user_id) %>%
+  summarise(
+    initial_set_size = first(mean_set_size),
+    final_set_size = last(mean_set_size),
+    improvement = final_set_size - initial_set_size
+  ) %>%
+  arrange(desc(improvement))
+
+# Select top 10 students with the most improvement
+top_students40 <- student_improvement40 %>%
+  top_n(10, improvement) %>%
+  pull(user_id)
+
+# Filter the data to include only the top 10 most improved students
+top_student_data40 <- correct_set_size_development40 %>%
+  filter(user_id %in% top_students40)
+```
+
+
+
+```{r}
+# Plot mean set size changes over time for the most improved students
+ggplot(top_student_data40, aes(x = quarter, y = mean_set_size, group = user_id, color = as.factor(user_id))) +
+  geom_line() +
+  geom_point() +
+  labs(title = "Mean Set Size Development for Top Improved Students in Mole Game",
+       x = "Quarter",
+       y = "Mean Set Size",
+       color = "User ID") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+
+```
+
