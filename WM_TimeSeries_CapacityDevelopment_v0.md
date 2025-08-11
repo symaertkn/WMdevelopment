@@ -207,7 +207,211 @@ ggplot(top_student_data, aes(x = quarter, y = mean_set_size, group = user_id, co
 
 ![](WM_TimeSeries_CapacityDevelopment_v0_files/figure-gfm/unnamed-chunk-12-1.png)<!-- -->
 
+## Selection - Most students
+
+``` r
+students_month6_450days <- filter_users_by_plays_and_months(data=merged_logs_number, min_plays = 20 , min_months = 6, min_duration = 450)
+nrow(students_month6_450days)
+```
+
+    ## [1] 970
+
+We have 970 students that played the Number game at least 6 months with
+2 sessions for min duration of 450 days.Let’s look at the grade levels.
+
+``` r
+merged_logs_number_tmp <- merged_logs_number %>% 
+  filter(user_id %in% students_month6_450days$user_id) %>% 
+  group_by(user_id, year_month) %>%
+  filter(n() >= 20) %>% # Ensure at least 20 plays in each month we utilize
+  ungroup()
+
+table(merged_logs_number_tmp$grade)
+```
+
+    ## 
+    ##      3      4      5      6      7      8 
+    ##  99312 110239  49617  28592  11593   5185
+
+### Grade 3
+
+``` r
+merged_logs_number_grade3 <- merged_logs_number_tmp %>% 
+  filter(grade == 3) 
+length(unique(merged_logs_number_grade3$user_id))
+```
+
+    ## [1] 423
+
+We have 423 students from grade 3.
+
+``` r
+grade3 <- ggplot(correct_set_size_development_grade3, aes(x = year_month, y = max_set_size, group = user_id, color = as.factor(user_id))) +
+  geom_line() +
+  geom_point() +
+  geom_text(aes(label = plays), vjust = -1, hjust = 1.5, size=2) +  # Add play counts as labels
+  labs(title = "Max Set Size Over Time for Sample Students in Number game 
+       in which they played 20 items (not have to be correct) every month 
+       for at least in Grade 3",
+       x = "Month",
+       y = "Mean Set Size",
+       color = "User ID") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+grade3
+```
+
+![](WM_TimeSeries_CapacityDevelopment_v0_files/figure-gfm/unnamed-chunk-19-1.png)<!-- -->
+
+### Grade 4
+
+``` r
+merged_logs_number_grade4 <- merged_logs_number_tmp %>% 
+  filter(grade == 4) 
+length(unique(merged_logs_number_grade4$user_id))
+```
+
+    ## [1] 626
+
+We have 626 students from grade 4. But some of the data may be coming
+from grade 3 so filter for at least 6 months and select random 10
+students.
+
+``` r
+merged_logs_number_grade4 <- merged_logs_number_grade4 %>% 
+  group_by(user_id) %>% 
+  filter(n_distinct(year_month) >= 6) %>%
+  ungroup()
+length(unique(merged_logs_number_grade4$user_id))
+```
+
+    ## [1] 221
+
+``` r
+grade4 <- ggplot(correct_set_size_development_grade4, aes(x = year_month, y = max_set_size, group = user_id, color = as.factor(user_id))) +
+  geom_line() +
+  geom_point() +
+  geom_text(aes(label = plays), vjust = -1, hjust = 1.5, size=2) +  # Add play counts as labels
+  labs(title = "Max Set Size Over Time for Sample Students in Number game 
+       in which they played 20 items (not have to be correct) every month 
+       for at least in grade 4",
+       x = "Month",
+       y = "Mean Set Size",
+       color = "User ID") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+grade4
+```
+
+![](WM_TimeSeries_CapacityDevelopment_v0_files/figure-gfm/unnamed-chunk-23-1.png)<!-- -->
+\### Grade 5
+
+``` r
+merged_logs_number_grade5 <- merged_logs_number_tmp %>% 
+  filter(grade == 5) 
+length(unique(merged_logs_number_grade5$user_id))
+```
+
+    ## [1] 434
+
+We have 434 students from grade 5. But some of the data may be coming
+from grade 3 and 4 so filter for at least 6 months and select random 10
+students.
+
+``` r
+merged_logs_number_grade5 <- merged_logs_number_grade5 %>% 
+  group_by(user_id) %>% 
+  filter(n_distinct(year_month) >= 6) %>%
+  ungroup()
+length(unique(merged_logs_number_grade5))
+```
+
+    ## [1] 20
+
+``` r
+grade5 <- ggplot(correct_set_size_development_grade5, aes(x = year_month, y = max_set_size, group = user_id, color = as.factor(user_id))) +
+  geom_line() +
+  geom_point() +
+  geom_text(aes(label = plays), vjust = -1, hjust = 1.5, size=2) +  # Add play counts as labels
+  labs(title = "Max Set Size Over Time for Sample Students in Number game 
+       in which they played 20 items (not have to be correct) every month 
+       for at least in grade 5",
+       x = "Month",
+       y = "Mean Set Size",
+       color = "User ID") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+grade5
+```
+
+![](WM_TimeSeries_CapacityDevelopment_v0_files/figure-gfm/unnamed-chunk-27-1.png)<!-- -->
+\### Grade 6
+
+``` r
+merged_logs_number_grade6 <- merged_logs_number_tmp %>% 
+  filter(grade == 6) 
+length(unique(merged_logs_number_grade5$user_id))
+```
+
+    ## [1] 72
+
+We have 72 students from grade 6. But some of the data may be coming
+from grade 3, 4 and 5 so filter for at least 6 months and select random
+10 students.
+
+``` r
+merged_logs_number_grade6 <- merged_logs_number_grade6 %>% 
+  group_by(user_id) %>% 
+  filter(n_distinct(year_month) >= 6) %>%
+  ungroup()
+
+length(unique(merged_logs_number_grade6))
+```
+
+    ## [1] 20
+
+``` r
+grade6 <- ggplot(correct_set_size_development_grade6, aes(x = year_month, y = max_set_size, group = user_id, color = as.factor(user_id))) +
+  geom_line() +
+  geom_point() +
+  geom_text(aes(label = plays), vjust = -1, hjust = 1.5, size=2) +  # Add play counts as labels
+  labs(title = "Max Set Size Over Time for Sample Students in Number game 
+       in which they played 20 items (not have to be correct) every month 
+       for at least in grade 6",
+       x = "Month",
+       y = "Mean Set Size",
+       color = "User ID") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+grade6
+```
+
+![](WM_TimeSeries_CapacityDevelopment_v0_files/figure-gfm/unnamed-chunk-31-1.png)<!-- -->
+
+``` r
+grade3_clean <- grade3 + ggtitle("3") + theme(legend.position = "none")
+grade4_clean <- grade4 + ggtitle("4") + theme(legend.position = "none")
+grade5_clean <- grade5 + ggtitle("5") + theme(legend.position = "none")
+grade6_clean <- grade6 + ggtitle("6") + theme(legend.position = "none")
+
+combined_plot <- (grade3_clean + grade4_clean) / (grade5_clean + grade6_clean) +
+  plot_annotation(
+    title = "Max Set Size Over Time - Number game- at least 20 items- Across Grades"
+  )
+
+combined_plot
+```
+
+![](WM_TimeSeries_CapacityDevelopment_v0_files/figure-gfm/unnamed-chunk-32-1.png)<!-- -->
+
 # Mole Game
+
+``` r
+rm(list = ls())
+load("~/research-collaboration/data-ro/data-users-40-66-2023-10-31.Rdata")
+load("~/research-collaboration/data-ro/data-logs_40-2023-10-31.Rdata")
+load("~/code_seyma/WMBenchmark/data/items.Rdata")
+```
 
 ## Selection 1
 
@@ -235,7 +439,7 @@ ggplot(correct_set_size_development40, aes(x = quarter, y = mean_set_size, group
   theme(axis.text.x = element_text(angle = 45, hjust = 1))
 ```
 
-![](WM_TimeSeries_CapacityDevelopment_v0_files/figure-gfm/unnamed-chunk-16-1.png)<!-- -->
+![](WM_TimeSeries_CapacityDevelopment_v0_files/figure-gfm/unnamed-chunk-37-1.png)<!-- -->
 
 ``` r
 ggplot(correct_set_size_development40, aes(x = quarter, y = max_set_size, group = user_id, color = as.factor(user_id))) +
@@ -251,7 +455,7 @@ ggplot(correct_set_size_development40, aes(x = quarter, y = max_set_size, group 
   theme(axis.text.x = element_text(angle = 45, hjust = 1))
 ```
 
-![](WM_TimeSeries_CapacityDevelopment_v0_files/figure-gfm/unnamed-chunk-16-2.png)<!-- -->
+![](WM_TimeSeries_CapacityDevelopment_v0_files/figure-gfm/unnamed-chunk-37-2.png)<!-- -->
 
 ``` r
 #Check the ability rating vs set sizes how they change 
@@ -280,7 +484,7 @@ correct_set_size_development40 %>%
     ## `geom_line()`: Each group consists of only one observation.
     ## ℹ Do you need to adjust the group aesthetic?
 
-![](WM_TimeSeries_CapacityDevelopment_v0_files/figure-gfm/unnamed-chunk-17-1.png)<!-- -->
+![](WM_TimeSeries_CapacityDevelopment_v0_files/figure-gfm/unnamed-chunk-38-1.png)<!-- -->
 \## Selection 2
 
 Select students: - **filter 2021-Q3 and 2023-Q2 (2 years) to filter out
@@ -309,7 +513,7 @@ ggplot(correct_set_size_development40_2years, aes(x = quarter, y = mean_set_size
   theme(axis.text.x = element_text(angle = 45, hjust = 1))
 ```
 
-![](WM_TimeSeries_CapacityDevelopment_v0_files/figure-gfm/unnamed-chunk-20-1.png)<!-- -->
+![](WM_TimeSeries_CapacityDevelopment_v0_files/figure-gfm/unnamed-chunk-41-1.png)<!-- -->
 
 ``` r
 ggplot(correct_set_size_development40_2years, aes(x = quarter, y = max_set_size, group = user_id, color = as.factor(user_id))) +
@@ -325,7 +529,7 @@ ggplot(correct_set_size_development40_2years, aes(x = quarter, y = max_set_size,
   theme(axis.text.x = element_text(angle = 45, hjust = 1))
 ```
 
-![](WM_TimeSeries_CapacityDevelopment_v0_files/figure-gfm/unnamed-chunk-20-2.png)<!-- -->
+![](WM_TimeSeries_CapacityDevelopment_v0_files/figure-gfm/unnamed-chunk-41-2.png)<!-- -->
 
 ## Selection 3
 
@@ -395,7 +599,7 @@ ggplot(correct_set_size_development40_2years_mon, aes(x = month, y = mean_set_si
   theme(axis.text.x = element_text(angle = 45, hjust = 1))
 ```
 
-![](WM_TimeSeries_CapacityDevelopment_v0_files/figure-gfm/unnamed-chunk-23-1.png)<!-- -->
+![](WM_TimeSeries_CapacityDevelopment_v0_files/figure-gfm/unnamed-chunk-44-1.png)<!-- -->
 
 ``` r
 ggplot(correct_set_size_development40_2years_mon, aes(x = month, y = max_set_size, group = user_id, color = as.factor(user_id))) +
@@ -411,7 +615,7 @@ ggplot(correct_set_size_development40_2years_mon, aes(x = month, y = max_set_siz
   theme(axis.text.x = element_text(angle = 45, hjust = 1))
 ```
 
-![](WM_TimeSeries_CapacityDevelopment_v0_files/figure-gfm/unnamed-chunk-23-2.png)<!-- -->
+![](WM_TimeSeries_CapacityDevelopment_v0_files/figure-gfm/unnamed-chunk-44-2.png)<!-- -->
 
 ## Grouping
 
@@ -456,7 +660,7 @@ ggplot(sample_students_40_monthv2, aes(x = month, y = max_set_size, group = user
   theme(axis.text.x = element_text(angle = 45, hjust = 1))
 ```
 
-![](WM_TimeSeries_CapacityDevelopment_v0_files/figure-gfm/unnamed-chunk-25-1.png)<!-- -->
+![](WM_TimeSeries_CapacityDevelopment_v0_files/figure-gfm/unnamed-chunk-46-1.png)<!-- -->
 \## Best Students
 
 We select the students that improved the most with the condition of:
@@ -500,4 +704,197 @@ ggplot(top_student_data40, aes(x = quarter, y = mean_set_size, group = user_id, 
   theme(axis.text.x = element_text(angle = 45, hjust = 1))
 ```
 
-![](WM_TimeSeries_CapacityDevelopment_v0_files/figure-gfm/unnamed-chunk-27-1.png)<!-- -->
+![](WM_TimeSeries_CapacityDevelopment_v0_files/figure-gfm/unnamed-chunk-48-1.png)<!-- -->
+
+## Selection - Most students
+
+*Do we try to select students that played at least two different days to
+select so that we know for sure that the decrease is not result of a bad
+day?*
+
+``` r
+students_month6_450daysMole <- filter_users_by_plays_and_months(data=merged_logs_mole, min_plays = 20 , min_months = 6, min_duration = 450)
+nrow(students_month6_450daysMole)
+```
+
+    ## [1] 3121
+
+We have 3121 students that played the Number game at least 6 months with
+2 sessions for min duration of 450 days.Let’s look at the grade levels.
+
+``` r
+merged_logs_mole_tmp <- merged_logs_mole %>% 
+  filter(user_id %in% students_month6_450daysMole$user_id) %>% 
+  group_by(user_id, year_month) %>%
+  filter(n() >= 20) %>% # Ensure at least 20 plays in each month we utilize
+  ungroup()
+
+table(merged_logs_mole_tmp$grade)
+```
+
+    ## 
+    ##      3      4      5      6      7      8 
+    ## 303444 256328 156767  92052  47351  20889
+
+### Grade 3
+
+``` r
+merged_logs_mole_grade3 <- merged_logs_mole_tmp %>% 
+  filter(grade == 3) 
+length(unique(merged_logs_mole_grade3$user_id))
+```
+
+    ## [1] 1708
+
+We have 1708 students from grade 3.
+
+``` r
+grade3MOLE <- ggplot(correct_set_size_development_grade3mole, aes(x = year_month, y = max_set_size, group = user_id, color = as.factor(user_id))) +
+  geom_line() +
+  geom_point() +
+  geom_text(aes(label = plays), vjust = -1, hjust = 1.5, size=2) +  # Add play counts as labels
+  labs(title = "Max Set Size Over Time for Sample Students in Mole game 
+       in which they played 20 items (not have to be correct) every month 
+       for at least in Grade 3",
+       x = "Month",
+       y = "Mean Set Size",
+       color = "User ID") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+grade3MOLE
+```
+
+![](WM_TimeSeries_CapacityDevelopment_v0_files/figure-gfm/unnamed-chunk-55-1.png)<!-- -->
+
+### Grade 4
+
+``` r
+merged_logs_mole_grade4 <- merged_logs_mole_tmp %>% 
+  filter(grade == 4) 
+length(unique(merged_logs_mole_grade4$user_id))
+```
+
+    ## [1] 2135
+
+We have 2135 students from grade 4. But some of the data may be coming
+from grade 3 so filter for at least 6 months and select random 10
+students.
+
+``` r
+merged_logs_mole_grade4 <- merged_logs_mole_grade4 %>% 
+  group_by(user_id) %>% 
+  filter(n_distinct(year_month) >= 6) %>%
+  ungroup()
+
+unique(length(merged_logs_mole_grade4))
+```
+
+    ## [1] 19
+
+``` r
+grade4MOLE <- ggplot(correct_set_size_development_grade4MOLE, aes(x = year_month, y = max_set_size, group = user_id, color = as.factor(user_id))) +
+  geom_line() +
+  geom_point() +
+  geom_text(aes(label = plays), vjust = -1, hjust = 1.5, size=2) +  # Add play counts as labels
+  labs(title = "Max Set Size Over Time for Sample Students in Mole game 
+       in which they played 20 items (not have to be correct) every month 
+       for at least in grade 4",
+       x = "Month",
+       y = "Mean Set Size",
+       color = "User ID") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+grade4MOLE
+```
+
+![](WM_TimeSeries_CapacityDevelopment_v0_files/figure-gfm/unnamed-chunk-59-1.png)<!-- -->
+\### Grade 5
+
+``` r
+merged_logs_mole_grade5 <- merged_logs_mole_tmp %>% 
+  filter(grade == 5) 
+length(unique(merged_logs_mole_grade5$user_id))
+```
+
+    ## [1] 1678
+
+We have 1678 students from grade 5. But some of the data may be coming
+from grade 3 and 4 so filter for at least 6 months and select random 10
+students.
+
+``` r
+merged_logs_mole_grade5 <- merged_logs_mole_grade5 %>% 
+  group_by(user_id) %>% 
+  filter(n_distinct(year_month) >= 6) %>%
+  ungroup()
+length(unique(merged_logs_mole_grade5))
+```
+
+    ## [1] 19
+
+``` r
+grade5mole <- ggplot(correct_set_size_development_grade5mole, aes(x = year_month, y = max_set_size, group = user_id, color = as.factor(user_id))) +
+  geom_line() +
+  geom_point() +
+  geom_text(aes(label = plays), vjust = -1, hjust = 1.5, size=2) +  # Add play counts as labels
+  labs(title = "Max Set Size Over Time for Sample Students in Mole game 
+       in which they played 20 items (not have to be correct) every month 
+       for at least in grade 5",
+       x = "Month",
+       y = "Mean Set Size",
+       color = "User ID") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+grade5mole
+```
+
+![](WM_TimeSeries_CapacityDevelopment_v0_files/figure-gfm/unnamed-chunk-63-1.png)<!-- -->
+\### Grade 6
+
+``` r
+merged_logs_mole_grade6 <- merged_logs_mole_tmp %>% 
+  filter(grade == 6) 
+length(unique(merged_logs_mole_grade6$user_id))
+```
+
+    ## [1] 1066
+
+We have A LOT MORE students in mole game by the way compared to the
+number game. 1066 students from grade 6. But some of the data may be
+coming from grade 3, 4 and 5 so filter for at least 6 months and select
+random 10 students.
+
+``` r
+grade6mole <- ggplot(correct_set_size_development_grade6mole, aes(x = year_month, y = max_set_size, group = user_id, color = as.factor(user_id))) +
+  geom_line() +
+  geom_point() +
+  geom_text(aes(label = plays), vjust = -1, hjust = 1.5, size=2) +  # Add play counts as labels
+  labs(title = "Max Set Size Over Time for Sample Students in Number game 
+       in which they played 20 items (not have to be correct) every month 
+       for at least in grade 6",
+       x = "Month",
+       y = "Mean Set Size",
+       color = "User ID") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+grade6mole
+```
+
+![](WM_TimeSeries_CapacityDevelopment_v0_files/figure-gfm/unnamed-chunk-67-1.png)<!-- -->
+Purple student? Wow. What have you done?
+
+``` r
+grade3mole_clean <- grade3MOLE + ggtitle("3") + theme(legend.position = "none")
+grade4mole_clean <- grade4MOLE + ggtitle("4") + theme(legend.position = "none")
+grade5mole_clean <- grade5mole + ggtitle("5") + theme(legend.position = "none")
+grade6mole_clean <- grade6mole + ggtitle("6") + theme(legend.position = "none")
+
+combined_plotMole <- (grade3mole_clean + grade4mole_clean) / (grade5mole_clean + grade6mole_clean) +
+  plot_annotation(
+    title = "Max Set Size Over Time - Mole game- at least 20 items- Across Grades"
+  )
+
+combined_plotMole
+```
+
+![](WM_TimeSeries_CapacityDevelopment_v0_files/figure-gfm/unnamed-chunk-68-1.png)<!-- -->

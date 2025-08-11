@@ -14,10 +14,9 @@ library(dplyr)
 library(ggplot2)
 library(dplyr)
 library(tidyr)
+library(patchwork)
 
-load("~/research-collaboration/data-ro/data-users-40-66-2023-10-31.Rdata")
 load("~/research-collaboration/data-ro/data-logs_66-2023-10-31.Rdata")
-load("~/research-collaboration/data-ro/data-logs_40-2023-10-31.Rdata")
 load("~/code_seyma/WMBenchmark/data/items.Rdata")
 ```
 
@@ -292,7 +291,286 @@ ggplot(top_student_data, aes(x = quarter, y = mean_set_size, group = user_id, co
   theme(axis.text.x = element_text(angle = 45, hjust = 1))
 ```
 
+## Selection - Most students 
+```{r include=FALSE}
+#make a unique month variable
+merged_logs_number <- merged_logs %>%
+  mutate(created_date = as.Date(created),
+          year_month = format(created_date, "%Y-%m"))
+
+#make duration variable (the time between their first and last recorded activity)
+duration_user <- merged_logs_number %>%
+  group_by(user_id) %>%
+  summarise(start = min(created_date), end= max(created_date)) %>%
+  mutate(duration = end -start) %>%
+  ungroup()
+
+duration_user <- duration_user %>%
+  select(user_id, duration)
+
+merged_logs_number <- merge(merged_logs_number, duration_user, by = "user_id")
+```
+```{r include=FALSE}
+#Taken from WMLongitudinal_Data doc
+
+filter_users_by_plays_and_months <- function(data, 
+                                               min_plays = 10, 
+                                               min_months = 8,
+                                               excl_month = c(),
+                                             min_duration = 90) 
+{
+  data %>%
+    filter(!year_month %in% excl_month ) %>% #excluded times, we may want to have smaller time interval
+    filter( duration >= min_duration  ) %>% # filter for the duration students played the game
+    group_by(user_id, year_month) %>%
+    filter(n() >= min_plays) %>%  # Ensure at least `min_plays` plays in each month
+    ungroup() %>%
+    group_by(user_id) %>%
+    summarise(unique_month = n_distinct(year_month), .groups = "drop") %>%
+    filter(unique_month >= min_months) %>%  # At least `min_quarters` distinct month
+    select(user_id)
+}
+```
+```{r}
+students_month6_450days <- filter_users_by_plays_and_months(data=merged_logs_number, min_plays = 20 , min_months = 6, min_duration = 450)
+nrow(students_month6_450days)
+```
+ We have 970 students that played the Number game at least 6 months with 2 sessions for min duration of 450 days.Let's look at the grade levels. 
+ 
+```{r}
+merged_logs_number_tmp <- merged_logs_number %>% 
+  filter(user_id %in% students_month6_450days$user_id) %>% 
+  group_by(user_id, year_month) %>%
+  filter(n() >= 20) %>% # Ensure at least 20 plays in each month we utilize
+  ungroup()
+
+table(merged_logs_number_tmp$grade)
+```
+
+### Grade 3
+
+```{r}
+merged_logs_number_grade3 <- merged_logs_number_tmp %>% 
+  filter(grade == 3) 
+length(unique(merged_logs_number_grade3$user_id))
+```
+ We have 423 students from grade 3. 
+ 
+```{r include=FALSE}
+merged_logs_number_grade3 <- merged_logs_number_grade3 %>% 
+  group_by(user_id) %>% 
+  filter(n_distinct(year_month) >= 6) %>%
+  ungroup()
+
+set.seed(1994)
+
+subset_logs3 <- merged_logs_number_grade3 %>%
+  filter(user_id %in% sample(unique(user_id), 5))
+
+correct_set_size_development_grade3 <- subset_logs3 %>% 
+  group_by(user_id, year_month) %>% #calculate max and mean set size for the year_month for students
+  summarise(mean_set_size = mean(set_size, na.rm = TRUE), 
+            median_set_size = median(set_size, na.rm = TRUE),
+            max_set_size = max(set_size, na.rm = TRUE),
+            mean_item_rating = max(item_rating, na.rm = TRUE),
+            max_rating = max(new_user_domain_rating, na.rm = TRUE),
+            min_set_size = min(set_size, na.rm = TRUE),
+            plays = n()) %>%
+  ungroup()
+```
+```{r}
+grade3 <- ggplot(correct_set_size_development_grade3, aes(x = year_month, y = max_set_size, group = user_id, color = as.factor(user_id))) +
+  geom_line() +
+  geom_point() +
+  geom_text(aes(label = plays), vjust = -1, hjust = 1.5, size=2) +  # Add play counts as labels
+  labs(title = "Max Set Size Over Time for Sample Students in Number game 
+       in which they played 20 items (not have to be correct) every month 
+       for at least in Grade 3",
+       x = "Month",
+       y = "Mean Set Size",
+       color = "User ID") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+grade3
+```
+
+
+### Grade 4
+
+```{r}
+merged_logs_number_grade4 <- merged_logs_number_tmp %>% 
+  filter(grade == 4) 
+length(unique(merged_logs_number_grade4$user_id))
+```
+ We have 626 students from grade 4. But some of the data may be coming from grade 3 so filter for at least 6 months and select random 10 students. 
+ 
+```{r}
+merged_logs_number_grade4 <- merged_logs_number_grade4 %>% 
+  group_by(user_id) %>% 
+  filter(n_distinct(year_month) >= 6) %>%
+  ungroup()
+length(unique(merged_logs_number_grade4$user_id))
+```
+
+
+```{r include=FALSE}
+set.seed(1994)
+
+subset_logs <- merged_logs_number_grade4 %>%
+  filter(user_id %in% sample(unique(user_id), 5))
+
+correct_set_size_development_grade4 <- subset_logs %>% 
+  group_by(user_id, year_month) %>% #calculate max and mean set size for the year_month for students
+  summarise(mean_set_size = mean(set_size, na.rm = TRUE), 
+            median_set_size = median(set_size, na.rm = TRUE),
+            max_set_size = max(set_size, na.rm = TRUE),
+            mean_item_rating = max(item_rating, na.rm = TRUE),
+            max_rating = max(new_user_domain_rating, na.rm = TRUE),
+            min_set_size = min(set_size, na.rm = TRUE),
+            plays = n()) %>%
+  ungroup()
+```
+```{r}
+grade4 <- ggplot(correct_set_size_development_grade4, aes(x = year_month, y = max_set_size, group = user_id, color = as.factor(user_id))) +
+  geom_line() +
+  geom_point() +
+  geom_text(aes(label = plays), vjust = -1, hjust = 1.5, size=2) +  # Add play counts as labels
+  labs(title = "Max Set Size Over Time for Sample Students in Number game 
+       in which they played 20 items (not have to be correct) every month 
+       for at least in grade 4",
+       x = "Month",
+       y = "Mean Set Size",
+       color = "User ID") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+grade4
+```
+### Grade 5
+
+```{r}
+merged_logs_number_grade5 <- merged_logs_number_tmp %>% 
+  filter(grade == 5) 
+length(unique(merged_logs_number_grade5$user_id))
+```
+ We have 434 students from grade 5. But some of the data may be coming from grade 3 and 4 so filter for at least 6 months and select random 10 students. 
+ 
+```{r}
+merged_logs_number_grade5 <- merged_logs_number_grade5 %>% 
+  group_by(user_id) %>% 
+  filter(n_distinct(year_month) >= 6) %>%
+  ungroup()
+length(unique(merged_logs_number_grade5))
+```
+
+
+```{r include=FALSE}
+set.seed(1994)
+
+subset_logs5 <- merged_logs_number_grade5 %>%
+  filter(user_id %in% sample(unique(user_id), 5))
+
+correct_set_size_development_grade5 <- subset_logs5 %>% 
+  group_by(user_id, year_month) %>% #calculate max and mean set size for the year_month for students
+  summarise(mean_set_size = mean(set_size, na.rm = TRUE), 
+            median_set_size = median(set_size, na.rm = TRUE),
+            max_set_size = max(set_size, na.rm = TRUE),
+            mean_item_rating = max(item_rating, na.rm = TRUE),
+            max_rating = max(new_user_domain_rating, na.rm = TRUE),
+            min_set_size = min(set_size, na.rm = TRUE),
+            plays = n()) %>%
+  ungroup()
+```
+```{r}
+grade5 <- ggplot(correct_set_size_development_grade5, aes(x = year_month, y = max_set_size, group = user_id, color = as.factor(user_id))) +
+  geom_line() +
+  geom_point() +
+  geom_text(aes(label = plays), vjust = -1, hjust = 1.5, size=2) +  # Add play counts as labels
+  labs(title = "Max Set Size Over Time for Sample Students in Number game 
+       in which they played 20 items (not have to be correct) every month 
+       for at least in grade 5",
+       x = "Month",
+       y = "Mean Set Size",
+       color = "User ID") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+grade5
+```
+### Grade 6
+
+```{r}
+merged_logs_number_grade6 <- merged_logs_number_tmp %>% 
+  filter(grade == 6) 
+length(unique(merged_logs_number_grade5$user_id))
+```
+ We have 72 students from grade 6. But some of the data may be coming from grade 3, 4 and 5 so filter for at least 6 months and select random 10 students. 
+ 
+```{r}
+merged_logs_number_grade6 <- merged_logs_number_grade6 %>% 
+  group_by(user_id) %>% 
+  filter(n_distinct(year_month) >= 6) %>%
+  ungroup()
+
+length(unique(merged_logs_number_grade6))
+```
+
+```{r include=FALSE}
+set.seed(1994)
+
+subset_logs6 <- merged_logs_number_grade6 %>%
+  filter(user_id %in% sample(unique(user_id), 5))
+
+correct_set_size_development_grade6 <- subset_logs6 %>% 
+  group_by(user_id, year_month) %>% #calculate max and mean set size for the year_month for students
+  summarise(mean_set_size = mean(set_size, na.rm = TRUE), 
+            median_set_size = median(set_size, na.rm = TRUE),
+            max_set_size = max(set_size, na.rm = TRUE),
+            mean_item_rating = max(item_rating, na.rm = TRUE),
+            max_rating = max(new_user_domain_rating, na.rm = TRUE),
+            min_set_size = min(set_size, na.rm = TRUE),
+            plays = n()) %>%
+  ungroup()
+```
+```{r}
+grade6 <- ggplot(correct_set_size_development_grade6, aes(x = year_month, y = max_set_size, group = user_id, color = as.factor(user_id))) +
+  geom_line() +
+  geom_point() +
+  geom_text(aes(label = plays), vjust = -1, hjust = 1.5, size=2) +  # Add play counts as labels
+  labs(title = "Max Set Size Over Time for Sample Students in Number game 
+       in which they played 20 items (not have to be correct) every month 
+       for at least in grade 6",
+       x = "Month",
+       y = "Mean Set Size",
+       color = "User ID") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+grade6
+```
+```{r fig.height=8, fig.width=10}
+
+grade3_clean <- grade3 + ggtitle("3") + theme(legend.position = "none")
+grade4_clean <- grade4 + ggtitle("4") + theme(legend.position = "none")
+grade5_clean <- grade5 + ggtitle("5") + theme(legend.position = "none")
+grade6_clean <- grade6 + ggtitle("6") + theme(legend.position = "none")
+
+combined_plot <- (grade3_clean + grade4_clean) / (grade5_clean + grade6_clean) +
+  plot_annotation(
+    title = "Max Set Size Over Time - Number game- at least 20 items- Across Grades"
+  )
+
+combined_plot
+
+```
+
+
+
 # Mole Game 
+
+```{r}
+rm(list = ls())
+load("~/research-collaboration/data-ro/data-users-40-66-2023-10-31.Rdata")
+load("~/research-collaboration/data-ro/data-logs_40-2023-10-31.Rdata")
+load("~/code_seyma/WMBenchmark/data/items.Rdata")
+```
 
 ```{r include=FALSE}
 logs_40$year <- format(as.Date(logs_40$created), "%Y")
@@ -662,3 +940,277 @@ ggplot(top_student_data40, aes(x = quarter, y = mean_set_size, group = user_id, 
 
 ```
 
+## Selection - Most students 
+
+*Do we try to select students that played at least two different days to select so that we know for sure that the decrease is not result of a bad day?* 
+
+```{r include=FALSE}
+#make a unique month variable
+merged_logs_mole <- merged_logs40 %>%
+  mutate(created_date = as.Date(created),
+          year_month = format(created_date, "%Y-%m"))
+
+#make duration variable (the time between their first and last recorded activity)
+duration_user <- merged_logs_mole %>%
+  group_by(user_id) %>%
+  summarise(start = min(created_date), end= max(created_date)) %>%
+  mutate(duration = end -start) %>%
+  ungroup()
+
+duration_user <- duration_user %>%
+  select(user_id, duration)
+
+merged_logs_mole <- merge(merged_logs_mole, duration_user, by = "user_id")
+```
+```{r include=FALSE}
+#Taken from WMLongitudinal_Data doc
+
+filter_users_by_plays_and_months <- function(data, 
+                                               min_plays = 10, 
+                                               min_months = 8,
+                                               excl_month = c(),
+                                             min_duration = 90) 
+{
+  data %>%
+    filter(!year_month %in% excl_month ) %>% #excluded times, we may want to have smaller time interval
+    filter( duration >= min_duration  ) %>% # filter for the duration students played the game
+    group_by(user_id, year_month) %>%
+    filter(n() >= min_plays) %>%  # Ensure at least `min_plays` plays in each month
+    ungroup() %>%
+    group_by(user_id) %>%
+    summarise(unique_month = n_distinct(year_month), .groups = "drop") %>%
+    filter(unique_month >= min_months) %>%  # At least `min_quarters` distinct month
+    select(user_id)
+}
+```
+```{r}
+students_month6_450daysMole <- filter_users_by_plays_and_months(data=merged_logs_mole, min_plays = 20 , min_months = 6, min_duration = 450)
+nrow(students_month6_450daysMole)
+```
+ We have 3121 students that played the Number game at least 6 months with 2 sessions for min duration of 450 days.Let's look at the grade levels. 
+ 
+```{r}
+merged_logs_mole_tmp <- merged_logs_mole %>% 
+  filter(user_id %in% students_month6_450daysMole$user_id) %>% 
+  group_by(user_id, year_month) %>%
+  filter(n() >= 20) %>% # Ensure at least 20 plays in each month we utilize
+  ungroup()
+
+table(merged_logs_mole_tmp$grade)
+```
+
+### Grade 3
+
+```{r}
+merged_logs_mole_grade3 <- merged_logs_mole_tmp %>% 
+  filter(grade == 3) 
+length(unique(merged_logs_mole_grade3$user_id))
+```
+ We have 1708 students from grade 3. 
+ 
+```{r include=FALSE}
+merged_logs_mole_grade3 <- merged_logs_mole_grade3 %>% 
+  group_by(user_id) %>% 
+  filter(n_distinct(year_month) >= 6) %>%
+  ungroup()
+
+set.seed(1994)
+
+subset_logs3MOLE <- merged_logs_mole_grade3 %>%
+  filter(user_id %in% sample(unique(user_id), 5))
+
+correct_set_size_development_grade3mole <- subset_logs3MOLE %>% 
+  group_by(user_id, year_month) %>% #calculate max and mean set size for the year_month for students
+  summarise(mean_set_size = mean(set_size, na.rm = TRUE), 
+            median_set_size = median(set_size, na.rm = TRUE),
+            max_set_size = max(set_size, na.rm = TRUE),
+            mean_item_rating = max(item_rating, na.rm = TRUE),
+            max_rating = max(new_user_domain_rating, na.rm = TRUE),
+            min_set_size = min(set_size, na.rm = TRUE),
+            plays = n()) %>%
+  ungroup()
+```
+```{r}
+grade3MOLE <- ggplot(correct_set_size_development_grade3mole, aes(x = year_month, y = max_set_size, group = user_id, color = as.factor(user_id))) +
+  geom_line() +
+  geom_point() +
+  geom_text(aes(label = plays), vjust = -1, hjust = 1.5, size=2) +  # Add play counts as labels
+  labs(title = "Max Set Size Over Time for Sample Students in Mole game 
+       in which they played 20 items (not have to be correct) every month 
+       for at least in Grade 3",
+       x = "Month",
+       y = "Mean Set Size",
+       color = "User ID") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+grade3MOLE
+```
+
+
+### Grade 4
+
+```{r}
+merged_logs_mole_grade4 <- merged_logs_mole_tmp %>% 
+  filter(grade == 4) 
+length(unique(merged_logs_mole_grade4$user_id))
+```
+ We have 2135 students from grade 4. But some of the data may be coming from grade 3 so filter for at least 6 months and select random 10 students. 
+ 
+```{r}
+merged_logs_mole_grade4 <- merged_logs_mole_grade4 %>% 
+  group_by(user_id) %>% 
+  filter(n_distinct(year_month) >= 6) %>%
+  ungroup()
+
+unique(length(merged_logs_mole_grade4))
+```
+
+
+```{r include=FALSE}
+set.seed(1994)
+
+subset_logs4MOLE <- merged_logs_mole_grade4 %>%
+  filter(user_id %in% sample(unique(user_id), 5))
+
+correct_set_size_development_grade4MOLE <- subset_logs4MOLE %>% 
+  group_by(user_id, year_month) %>% #calculate max and mean set size for the year_month for students
+  summarise(mean_set_size = mean(set_size, na.rm = TRUE), 
+            median_set_size = median(set_size, na.rm = TRUE),
+            max_set_size = max(set_size, na.rm = TRUE),
+            mean_item_rating = max(item_rating, na.rm = TRUE),
+            max_rating = max(new_user_domain_rating, na.rm = TRUE),
+            min_set_size = min(set_size, na.rm = TRUE),
+            plays = n()) %>%
+  ungroup()
+```
+```{r}
+grade4MOLE <- ggplot(correct_set_size_development_grade4MOLE, aes(x = year_month, y = max_set_size, group = user_id, color = as.factor(user_id))) +
+  geom_line() +
+  geom_point() +
+  geom_text(aes(label = plays), vjust = -1, hjust = 1.5, size=2) +  # Add play counts as labels
+  labs(title = "Max Set Size Over Time for Sample Students in Mole game 
+       in which they played 20 items (not have to be correct) every month 
+       for at least in grade 4",
+       x = "Month",
+       y = "Mean Set Size",
+       color = "User ID") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+grade4MOLE
+```
+### Grade 5
+
+```{r}
+merged_logs_mole_grade5 <- merged_logs_mole_tmp %>% 
+  filter(grade == 5) 
+length(unique(merged_logs_mole_grade5$user_id))
+```
+ We have 1678 students from grade 5. But some of the data may be coming from grade 3 and 4 so filter for at least 6 months and select random 10 students. 
+ 
+```{r}
+merged_logs_mole_grade5 <- merged_logs_mole_grade5 %>% 
+  group_by(user_id) %>% 
+  filter(n_distinct(year_month) >= 6) %>%
+  ungroup()
+length(unique(merged_logs_mole_grade5))
+```
+
+
+```{r include=FALSE}
+set.seed(1994)
+
+subset_logs5mole <- merged_logs_mole_grade5 %>%
+  filter(user_id %in% sample(unique(user_id), 5))
+
+correct_set_size_development_grade5mole <- subset_logs5mole %>% 
+  group_by(user_id, year_month) %>% #calculate max and mean set size for the year_month for students
+  summarise(mean_set_size = mean(set_size, na.rm = TRUE), 
+            median_set_size = median(set_size, na.rm = TRUE),
+            max_set_size = max(set_size, na.rm = TRUE),
+            mean_item_rating = max(item_rating, na.rm = TRUE),
+            max_rating = max(new_user_domain_rating, na.rm = TRUE),
+            min_set_size = min(set_size, na.rm = TRUE),
+            plays = n()) %>%
+  ungroup()
+```
+```{r}
+grade5mole <- ggplot(correct_set_size_development_grade5mole, aes(x = year_month, y = max_set_size, group = user_id, color = as.factor(user_id))) +
+  geom_line() +
+  geom_point() +
+  geom_text(aes(label = plays), vjust = -1, hjust = 1.5, size=2) +  # Add play counts as labels
+  labs(title = "Max Set Size Over Time for Sample Students in Mole game 
+       in which they played 20 items (not have to be correct) every month 
+       for at least in grade 5",
+       x = "Month",
+       y = "Mean Set Size",
+       color = "User ID") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+grade5mole
+```
+### Grade 6
+
+```{r}
+merged_logs_mole_grade6 <- merged_logs_mole_tmp %>% 
+  filter(grade == 6) 
+length(unique(merged_logs_mole_grade6$user_id))
+```
+ We have A LOT MORE students in mole game by the way compared to the number game. 1066 students from grade 6. But some of the data may be coming from grade 3, 4 and 5 so filter for at least 6 months and select random 10 students. 
+ 
+```{r include=FALSE}
+merged_logs_mole_grade6 <- merged_logs_mole_grade6 %>% 
+  group_by(user_id) %>% 
+  filter(n_distinct(year_month) >= 6) %>%
+  ungroup()
+length(unique(merged_logs_mole_grade6))
+```
+
+
+```{r include=FALSE}
+set.seed(1994)
+
+subset_logs6mole <- merged_logs_mole_grade6 %>%
+  filter(user_id %in% sample(unique(user_id), 5))
+
+correct_set_size_development_grade6mole <- subset_logs6mole %>% 
+  group_by(user_id, year_month) %>% #calculate max and mean set size for the year_month for students
+  summarise(mean_set_size = mean(set_size, na.rm = TRUE), 
+            median_set_size = median(set_size, na.rm = TRUE),
+            max_set_size = max(set_size, na.rm = TRUE),
+            mean_item_rating = max(item_rating, na.rm = TRUE),
+            max_rating = max(new_user_domain_rating, na.rm = TRUE),
+            min_set_size = min(set_size, na.rm = TRUE),
+            plays = n()) %>%
+  ungroup()
+```
+```{r}
+grade6mole <- ggplot(correct_set_size_development_grade6mole, aes(x = year_month, y = max_set_size, group = user_id, color = as.factor(user_id))) +
+  geom_line() +
+  geom_point() +
+  geom_text(aes(label = plays), vjust = -1, hjust = 1.5, size=2) +  # Add play counts as labels
+  labs(title = "Max Set Size Over Time for Sample Students in Number game 
+       in which they played 20 items (not have to be correct) every month 
+       for at least in grade 6",
+       x = "Month",
+       y = "Mean Set Size",
+       color = "User ID") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+grade6mole
+```
+Purple student? Wow. What have you done? 
+
+```{r fig.height=8, fig.width=10}
+
+grade3mole_clean <- grade3MOLE + ggtitle("3") + theme(legend.position = "none")
+grade4mole_clean <- grade4MOLE + ggtitle("4") + theme(legend.position = "none")
+grade5mole_clean <- grade5mole + ggtitle("5") + theme(legend.position = "none")
+grade6mole_clean <- grade6mole + ggtitle("6") + theme(legend.position = "none")
+
+combined_plotMole <- (grade3mole_clean + grade4mole_clean) / (grade5mole_clean + grade6mole_clean) +
+  plot_annotation(
+    title = "Max Set Size Over Time - Mole game- at least 20 items- Across Grades"
+  )
+
+combined_plotMole
+```
